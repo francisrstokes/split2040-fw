@@ -6,8 +6,10 @@
  */
 
 #include <stdio.h>
-#include "pico/stdlib.h"
 #include <string.h>
+
+#include "pico/stdlib.h"
+
 #include "usb_common.h"
 #include "hardware/regs/usb.h"
 #include "hardware/structs/usb.h"
@@ -32,6 +34,13 @@ static volatile bool configured = false;
 
 // Global data buffer for EP0
 static uint8_t ep0_buf[64];
+
+// HID keyboard report
+static volatile uint8_t keyboard_hid_report[8] = {0};
+
+// Software timer for updating keyboard values
+static repeating_timer_t software_timer = {0};
+static volatile uint8_t ms_timer_count = 0;
 
 // Struct defining the device configuration
 static struct usb_device_configuration dev_config = {
@@ -148,6 +157,11 @@ void usb_device_init() {
 
 static inline bool ep_is_tx(struct usb_endpoint_configuration *ep) {
     return ep->descriptor->bEndpointAddress & USB_DIR_IN;
+}
+
+void usb_send_nack(struct usb_endpoint_configuration *ep) {
+    // Set the abort bit on EP1_IN (keyboard)
+    usb_hw->abort |= (1 << 2);
 }
 
 void usb_start_transfer(struct usb_endpoint_configuration *ep, uint8_t *buf, uint16_t len) {
@@ -342,7 +356,7 @@ static void usb_handle_ep_buff_done(struct usb_endpoint_configuration *ep) {
 
 static void usb_handle_buff_done(uint ep_num, bool in) {
     uint8_t ep_addr = ep_num | (in ? USB_DIR_IN : 0);
-    printf("EP %d (in = %d) done\n", ep_num, in);
+
     for (uint i = 0; i < USB_NUM_ENDPOINTS; i++) {
         struct usb_endpoint_configuration *ep = &dev_config.endpoints[i];
         if (ep->descriptor && ep->handler) {
@@ -452,10 +466,31 @@ void ep0_out_handler(__unused uint8_t *buf, __unused uint16_t len) {
 
 // Device specific functions
 void ep1_in_handler(uint8_t *buf, uint16_t len) {
-    // Send hid report
+    // Data was RXd by host, clear the bit to mark as handled
+    usb_hw->buf_status &= ~(1 << 2);
+}
+
+static bool keyboard_timer_callback(repeating_timer_t *rt) {
+    bool key_pressed = keyboard_hid_report[2] != HID_KEY_NONE;
+
+    if (!key_pressed) {
+        keyboard_hid_report[2] = HID_KEY_A;
+        gpio_put(PICO_DEFAULT_LED_PIN, true);
+    } else {
+        keyboard_hid_report[2] = HID_KEY_NONE;
+        gpio_put(PICO_DEFAULT_LED_PIN, false);
+    }
+
+    usb_start_transfer(&dev_config.endpoints[EP_KEYBOARD_IN], (uint8_t*)keyboard_hid_report, 8);
+
+    return true;
 }
 
 int main(void) {
+    gpio_init(PICO_DEFAULT_LED_PIN);
+    gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
+    gpio_put(PICO_DEFAULT_LED_PIN, false);
+
     stdio_init_all();
     usb_device_init();
 
@@ -464,7 +499,9 @@ int main(void) {
         tight_loop_contents();
     }
 
-    // Everything is interrupt driven so just loop here
+    // After we're configured, setup the software timer for updating the keyboard values
+    add_repeating_timer_ms(250, keyboard_timer_callback, NULL, &software_timer);
+
     while (1) {
         tight_loop_contents();
     }
