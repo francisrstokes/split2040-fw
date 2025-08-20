@@ -18,6 +18,7 @@
 
 // Device descriptors
 #include "descriptors.h"
+#include "matrix.h"
 
 #define usb_hw_set ((usb_hw_t *)hw_set_alias_untyped(usb_hw))
 #define usb_hw_clear ((usb_hw_t *)hw_clear_alias_untyped(usb_hw))
@@ -36,11 +37,9 @@ static volatile bool configured = false;
 static uint8_t ep0_buf[64];
 
 // HID keyboard report
-static volatile uint8_t keyboard_hid_report[8] = {0};
-
-// Software timer for updating keyboard values
-static repeating_timer_t software_timer = {0};
-static volatile uint8_t ms_timer_count = 0;
+static uint8_t keyboard_hid_report[8] = {0};
+static uint8_t next_keyboard_hid_report[8] = {0};
+static repeating_timer_t matrix_scan_timer = {0};
 
 // Struct defining the device configuration
 static struct usb_device_configuration dev_config = {
@@ -470,28 +469,20 @@ void ep1_in_handler(uint8_t *buf, uint16_t len) {
     usb_hw->buf_status &= ~(1 << 2);
 }
 
-static bool keyboard_timer_callback(repeating_timer_t *rt) {
-    bool key_pressed = keyboard_hid_report[2] != HID_KEY_NONE;
+static bool matrix_scan_timer_cb(repeating_timer_t *rt) {
+    matrix_scan(next_keyboard_hid_report);
 
-    if (!key_pressed) {
-        keyboard_hid_report[2] = HID_KEY_A;
-        gpio_put(PICO_DEFAULT_LED_PIN, true);
-    } else {
-        keyboard_hid_report[2] = HID_KEY_NONE;
-        gpio_put(PICO_DEFAULT_LED_PIN, false);
+    // Only prepare a new interrupt response when something has changed (the hardware will nack the interrupt IN if no data is already in the buffer)
+    if (memcmp(next_keyboard_hid_report, keyboard_hid_report, 8) != 0) {
+        memcpy(keyboard_hid_report, next_keyboard_hid_report, 8);
+        usb_start_transfer(&dev_config.endpoints[EP_KEYBOARD_IN], (uint8_t*)keyboard_hid_report, 8);
     }
-
-    usb_start_transfer(&dev_config.endpoints[EP_KEYBOARD_IN], (uint8_t*)keyboard_hid_report, 8);
 
     return true;
 }
 
 int main(void) {
-    gpio_init(PICO_DEFAULT_LED_PIN);
-    gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
-    gpio_put(PICO_DEFAULT_LED_PIN, false);
-
-    stdio_init_all();
+    matrix_init();
     usb_device_init();
 
     // Wait until configured
@@ -499,8 +490,8 @@ int main(void) {
         tight_loop_contents();
     }
 
-    // After we're configured, setup the software timer for updating the keyboard values
-    add_repeating_timer_ms(250, keyboard_timer_callback, NULL, &software_timer);
+    // After we're configured, setup a repeating timer for scanning the key matrix
+    add_repeating_timer_ms(-1, matrix_scan_timer_cb, NULL, &matrix_scan_timer);
 
     while (1) {
         tight_loop_contents();
