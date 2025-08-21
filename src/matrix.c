@@ -11,10 +11,10 @@
 #include "pico/stdlib.h"
 
 // defines
-#define LAYER_QWERTY    (0)
-#define LAYER_LOWER     (1)
-#define LAYER_RAISE     (2)
-#define LAYER_FN        (3)
+#define LAYER_QWERTY            (0)
+#define LAYER_LOWER             (1)
+#define LAYER_RAISE             (2)
+#define LAYER_FN                (3)
 
 #define MAX_PRESSED_POSITIONS   (32)
 
@@ -23,11 +23,29 @@
 
 #define PRESS_PROCESSED         (0xff)
 
-#define ____    KC_TRANS
+#define ____                    KC_TRANS
 
-#define LOWER   MO(LAYER_LOWER)
-#define RAISE   MO(LAYER_RAISE)
-#define FN      MO(LAYER_FN)
+#define LOWER                   MO(LAYER_LOWER)
+#define RAISE                   MO(LAYER_RAISE)
+#define FN                      MO(LAYER_FN)
+
+#define C_LEFT                  LC(KC_LEFT)
+#define C_DOWN                  LC(KC_DOWN)
+#define C_UP                    LC(KC_UP)
+#define C_RIGHT                 LC(KC_RIGHT)
+
+#define S_1                     LS(KC_1)
+#define S_2                     LS(KC_2)
+#define S_3                     LS(KC_3)
+#define S_4                     LS(KC_4)
+#define S_5                     LS(KC_5)
+#define S_6                     LS(KC_6)
+#define S_7                     LS(KC_7)
+#define S_8                     LS(KC_8)
+#define S_9                     LS(KC_9)
+#define S_0                     LS(KC_0)
+#define S_MINUS                 LS(KC_MINUS)
+
 
 // typedefs
 typedef struct pressed_pos_t {
@@ -65,13 +83,13 @@ static uint16_t keymap[NUM_LAYERS][MATRIX_ROWS][MATRIX_COLS] = {
     [LAYER_LOWER] = {
         {KC_F1,    KC_F2,       KC_F3,     KC_F4,       KC_F5,     KC_F6,       /* split */     KC_F7,     KC_F8,       KC_F9,      KC_F10,     KC_F11,     KC_F12},
         {____,      KC_1,       KC_2,       KC_3,       KC_4,       KC_5,       /* split */     KC_6,      KC_7,        KC_8,       KC_9,       KC_0,       KC_MINUS},
-        {____,      ____,       ____,       ____,       ____,       ____,       /* split */     ____,      KC_LEFT,     KC_DOWN,    KC_UP,      KC_RIGHT,   ____},
+        {____,      C_LEFT,     C_DOWN,     C_UP,       C_RIGHT,    ____,       /* split */     ____,      KC_LEFT,     KC_DOWN,    KC_UP,      KC_RIGHT,   ____},
         {____,      ____,       ____,       ____,       ____,       ____,       /* split */     ____,       ____,       ____,       ____,       ____,       ____}
     },
 
     [LAYER_RAISE] = {
         {____,      ____,       ____,       ____,       ____,       ____,       /* split */     ____,       ____,       ____,       ____,       ____,       ____},
-        {____,      ____,       ____,       ____,       ____,       ____,       /* split */     ____,       ____,       ____,       ____,       ____,       ____},
+        {____,      S_1,        S_2,        S_3,        S_4,        S_5,        /* split */     S_6,        S_7,        S_8,        S_9,        S_0,       S_MINUS},
         {____,      ____,       ____,       ____,       ____,       ____,       /* split */     ____,       ____,       ____,       ____,       ____,       ____},
         {____,      ____,       ____,       ____,       ____,       ____,       /* split */     ____,       ____,       ____,       ____,       ____,       ____}
     },
@@ -127,6 +145,10 @@ void matrix_handled_pressed_keys(uint8_t* keyboard_hid_report) {
 
         switch (key & ENTRY_TYPE_MASK) {
             case ENTRY_TYPE_KC: {
+                // The key matrix entry arg can contain any combination of(left) modifiers
+                keyboard_hid_report[0] |= (key >> 8);
+
+                // The key code value itself can be either a modifier or a key proper
                 if ((kc_value >= KC_LCTL) && (kc_value <= KC_RGUI)) {
                     // the bit position is encoded directly into the bottom nibble
                     keyboard_hid_report[0] |= (1 << (kc_value & 0xf));

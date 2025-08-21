@@ -27,6 +27,11 @@
 // matrix macros
 #define KEY(kc)             (kc)
 
+#define LC(kc)              KEY((1 << 8)  | kc)
+#define LS(kc)              KEY((1 << 9)  | kc)
+#define LA(kc)              KEY((1 << 10) | kc)
+#define LG(kc)              KEY((1 << 11) | kc)
+
 #define LAYER_COM(c, index) (ENTRY_TYPE_LAYER | (c) | (index))
 #define MO(index)           LAYER_COM(LAYER_COM_MO, index)
 
