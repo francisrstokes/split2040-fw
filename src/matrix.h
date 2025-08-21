@@ -12,17 +12,27 @@
 // defines
 #define MATRIX_ROWS (4)
 #define MATRIX_COLS (12)
+#define NUM_LAYERS  (4)
 
-#define ENTRY_TYPE_MASK (0xff00)
-#define ENTRY_TYPE_KC   (0x0000)
+#define ENTRY_TYPE_MASK     (0xf000)
+#define ENTRY_ARG_MASK      (0x0f00)
 
-#define KC_MASK         (0xff)
+#define ENTRY_TYPE_KC       (0x0000)
+#define ENTRY_TYPE_LAYER    (0x1000)
+
+#define KC_MASK             (0x00ff)
+
+#define LAYER_COM_MO        (0x0000)
 
 // matrix macros
-#define KEY(value) (value)
+#define KEY(kc)             (kc)
+
+#define LAYER_COM(c, index) (ENTRY_TYPE_LAYER | (c) | (index))
+#define MO(index)           LAYER_COM(LAYER_COM_MO, index)
 
 // key definitions
 #define KC_NONE     KEY(HID_KEY_NONE)
+#define KC_TRANS    KEY(0x01)
 #define KC_ESC      KEY(HID_KEY_ESCAPE)
 #define KC_BSPC     KEY(HID_KEY_BACKSPACE)
 #define KC_TAB      KEY(HID_KEY_TAB)
@@ -35,6 +45,7 @@
 #define KC_HOME     KEY(HID_KEY_HOME)
 #define KC_END      KEY(HID_KEY_END)
 #define KC_SPC      KEY(HID_KEY_SPACE)
+#define KC_MINUS    KEY(HID_KEY_MINUS)
 
 #define KC_LCTL     KEY(HID_KEY_CONTROL_LEFT)
 #define KC_LSFT     KEY(HID_KEY_SHIFT_LEFT)
@@ -71,6 +82,36 @@
 #define KC_X        KEY(HID_KEY_X)
 #define KC_Y        KEY(HID_KEY_Y)
 #define KC_Z        KEY(HID_KEY_Z)
+
+#define KC_0        KEY(HID_KEY_0)
+#define KC_1        KEY(HID_KEY_1)
+#define KC_2        KEY(HID_KEY_2)
+#define KC_3        KEY(HID_KEY_3)
+#define KC_4        KEY(HID_KEY_4)
+#define KC_5        KEY(HID_KEY_5)
+#define KC_6        KEY(HID_KEY_6)
+#define KC_7        KEY(HID_KEY_7)
+#define KC_8        KEY(HID_KEY_8)
+#define KC_9        KEY(HID_KEY_9)
+#define KC_0        KEY(HID_KEY_0)
+
+#define KC_F1       KEY(HID_KEY_F1)
+#define KC_F2       KEY(HID_KEY_F2)
+#define KC_F3       KEY(HID_KEY_F3)
+#define KC_F4       KEY(HID_KEY_F4)
+#define KC_F5       KEY(HID_KEY_F5)
+#define KC_F6       KEY(HID_KEY_F6)
+#define KC_F7       KEY(HID_KEY_F7)
+#define KC_F8       KEY(HID_KEY_F8)
+#define KC_F9       KEY(HID_KEY_F9)
+#define KC_F10      KEY(HID_KEY_F10)
+#define KC_F11      KEY(HID_KEY_F11)
+#define KC_F12      KEY(HID_KEY_F12)
+
+#define KC_RIGHT    KEY(HID_KEY_ARROW_RIGHT)
+#define KC_LEFT     KEY(HID_KEY_ARROW_LEFT)
+#define KC_DOWN     KEY(HID_KEY_ARROW_DOWN)
+#define KC_UP       KEY(HID_KEY_ARROW_UP)
 
 // public functions
 void matrix_init(void);
