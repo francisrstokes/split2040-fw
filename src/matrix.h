@@ -10,15 +10,17 @@
 #include "hid.h"
 
 // defines
-#define MATRIX_ROWS (4)
-#define MATRIX_COLS (12)
-#define NUM_LAYERS  (4)
+#define MATRIX_SCAN_INTERVAL_MS     (1)
+#define MATRIX_ROWS                 (4)
+#define MATRIX_COLS                 (12)
+#define NUM_LAYERS                  (4)
 
 #define ENTRY_TYPE_MASK     (0xf000)
 #define ENTRY_ARG_MASK      (0x0f00)
 
 #define ENTRY_TYPE_KC       (0x0000)
 #define ENTRY_TYPE_LAYER    (0x1000)
+#define ENTRY_TYPE_TAPHOLD  (0x2000)
 
 #define KC_MASK             (0x00ff)
 
@@ -34,6 +36,12 @@
 
 #define LAYER_COM(c, index) (ENTRY_TYPE_LAYER | (c) | (index))
 #define MO(index)           LAYER_COM(LAYER_COM_MO, index)
+
+#define TAP_HOLD(kc, mod)   (ENTRY_TYPE_TAPHOLD | (mod) | (kc))
+#define LC_T(kc)            TAP_HOLD(kc, (1 << 8))
+#define LS_T(kc)            TAP_HOLD(kc, (1 << 9))
+#define LA_T(kc)            TAP_HOLD(kc, (1 << 10))
+#define LG_T(kc)            TAP_HOLD(kc, (1 << 11))
 
 // key definitions
 #define KC_NONE     KEY(HID_KEY_NONE)
@@ -51,6 +59,8 @@
 #define KC_END      KEY(HID_KEY_END)
 #define KC_SPC      KEY(HID_KEY_SPACE)
 #define KC_MINUS    KEY(HID_KEY_MINUS)
+#define KC_BRKT_L   KEY(HID_KEY_BRACKET_LEFT)
+#define KC_BRKT_R   KEY(HID_KEY_BRACKET_RIGHT)
 
 #define KC_LCTL     KEY(HID_KEY_CONTROL_LEFT)
 #define KC_LSFT     KEY(HID_KEY_SHIFT_LEFT)

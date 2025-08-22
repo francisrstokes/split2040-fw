@@ -12,6 +12,7 @@ pico_sdk_init()
 add_executable(usb_keyboard
         src/usb_keyboard.c
         src/matrix.c
+        src/ll_alloc.c
         )
 
 target_link_libraries(usb_keyboard PRIVATE pico_stdlib hardware_resets hardware_irq)
