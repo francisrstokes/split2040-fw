@@ -10,6 +10,7 @@
 #include <string.h>
 
 #include "pico/stdlib.h"
+#include "pico/bootrom.h"
 
 // defines
 
@@ -126,6 +127,15 @@ static uint16_t keymap[NUM_LAYERS][MATRIX_ROWS][MATRIX_COLS] = {
 };
 
 // private functions
+static void matrix_bootmagic(void) {
+    gpio_put(matrix_cols[0], true);
+    sleep_ms(1);
+    if (gpio_get(matrix_rows[0])) {
+        reset_usb_boot(0, 0);
+    }
+    gpio_put(matrix_cols[0], false);
+}
+
 static void matrix_add_key_to_report(uint8_t* keyboard_hid_report, uint8_t kc) {
     if (report_press_count < 6) {
         // The key code value itself can be either a modifier or a key proper
@@ -320,6 +330,9 @@ void matrix_init(void) {
         gpio_set_dir(matrix_rows[i], GPIO_IN);
         gpio_pull_down(matrix_rows[i]);
     }
+
+    // Reset to the bootrom if the escape key is held during boot
+    matrix_bootmagic();
 
     // Init the taphold state
     lla_init(
