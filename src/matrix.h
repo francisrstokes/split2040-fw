@@ -131,3 +131,7 @@
 // public functions
 void matrix_init(void);
 void matrix_scan(uint8_t* keyboard_hid_report);
+bool matrix_key_pressed(uint32_t row, uint32_t col, bool also_when_handled);
+void matrix_mark_key_as_handled(uint32_t row, uint32_t col);
+const uint32_t* matrix_get_pressed_bitmap(void);
+const uint32_t* matrix_get_handled_bitmap(void);

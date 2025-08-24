@@ -86,6 +86,7 @@ static layer_state_t layer_state = {
 
 static uint8_t report_press_count = 0;
 static uint32_t pressed_bitmap[MATRIX_ROWS] = {0};
+static uint32_t handled_bitmap[MATRIX_ROWS] = {0};
 
 static taphold_state_t tapholds = {0};
 
@@ -152,7 +153,7 @@ static void matrix_handle_layer_presses(void) {
     for (uint row = 0; row < MATRIX_ROWS; row++) {
         for (uint col = 0; col < MATRIX_COLS; col++) {
             // Skip anything not pressed, or that has already been processed
-            if (((pressed_bitmap[row] >> col) & 1) != 1) continue;
+            if (!matrix_key_pressed(row, col, false)) continue;
 
             key = keymap[layer_state.current][row][col];
 
@@ -164,7 +165,7 @@ static void matrix_handle_layer_presses(void) {
                         layer_state.current = key & KC_MASK;
 
                         // Don't process this entry on further operations
-                        pressed_bitmap[row] &= ~(1 << col);
+                        matrix_mark_key_as_handled(row, col);
                     } break;
                 }
             }
@@ -178,7 +179,7 @@ static void matrix_handle_taphold_presses(void) {
     for (uint row = 0; row < MATRIX_ROWS; row++) {
         for (uint col = 0; col < MATRIX_COLS; col++) {
             // Skip anything not pressed, or that has already been processed
-            if (((pressed_bitmap[row] >> col) & 1) != 1) continue;
+            if (!matrix_key_pressed(row, col, false)) continue;
 
             // If this key is transparent, use the base layer instead
             key = keymap[layer_state.current][row][col];
@@ -195,7 +196,7 @@ static void matrix_handle_taphold_presses(void) {
                     taphold->col = col;
                     taphold->row = row;
                 }
-                pressed_bitmap[row] &= ~(1 << col);
+                matrix_mark_key_as_handled(row, col);
             }
         }
     }
@@ -209,7 +210,7 @@ static void matrix_handle_remaining_presses(uint8_t* keyboard_hid_report) {
     for (uint row = 0; row < MATRIX_ROWS; row++) {
         for (uint col = 0; col < MATRIX_COLS; col++) {
             // Skip anything not pressed, or that has already been processed
-            if (((pressed_bitmap[row] >> col) & 1) != 1) continue;
+            if (!matrix_key_pressed(row, col, false)) continue;
 
             // If this key is transparent, use the base layer instead
             key = keymap[layer_state.current][row][col];
@@ -247,10 +248,10 @@ static void matrix_update_active_tapholds(uint8_t* keyboard_hid_report) {
         }
 
         // Is this key still being held? If the key was released or the layer changed, we need to stop tracking this taphold
-        bool is_pressed = ((pressed_bitmap[current_taphold->row] >> current_taphold->col) & 1) == 1;
+        bool is_pressed = matrix_key_pressed(current_taphold->row, current_taphold->col, false);
         if (is_pressed) {
             // Since we've dealt with the key here, don't process it in further steps
-            pressed_bitmap[current_taphold->row] &= ~(1 << current_taphold->col);
+            matrix_mark_key_as_handled(current_taphold->row, current_taphold->col);
         }
 
         // If the key was released before the hold delay timed out, we need to send the original key and cancel the taphold
@@ -282,8 +283,11 @@ static void matrix_update_active_tapholds(uint8_t* keyboard_hid_report) {
 
 static void matrix_check_for_taphold_interruptions(uint8_t* keyboard_hid_report) {
     bool there_are_unhandled_keys = false;
+    const uint32_t* pressed_keys = matrix_get_pressed_bitmap();
+    const uint32_t* handled_keys = matrix_get_handled_bitmap();
+
     for (uint i = 0; i < MATRIX_ROWS; i++) {
-        there_are_unhandled_keys = there_are_unhandled_keys || (pressed_bitmap[i] != 0);
+        there_are_unhandled_keys = there_are_unhandled_keys || ((pressed_keys[i] & ~handled_keys[i]) != 0);
     }
 
     if (there_are_unhandled_keys) {
@@ -307,9 +311,6 @@ static void matrix_check_for_taphold_interruptions(uint8_t* keyboard_hid_report)
 }
 
 static void matrix_handled_pressed_keys(uint8_t* keyboard_hid_report) {
-    uint16_t key = KC_NONE;
-    uint8_t kc_value = KC_NONE;
-
     matrix_handle_layer_presses();
 
     matrix_update_active_tapholds(keyboard_hid_report);
@@ -359,6 +360,7 @@ void matrix_scan(uint8_t* keyboard_hid_report) {
 
     // Clear the pressed key positions
     memset(pressed_bitmap, 0, sizeof(pressed_bitmap));
+    memset(handled_bitmap, 0, sizeof(handled_bitmap));
     uint32_t press_count = 0;
     report_press_count = 0;
 
@@ -385,4 +387,24 @@ void matrix_scan(uint8_t* keyboard_hid_report) {
 
     // Once the scan is complete, process the pressed keys, which could have functions beyond standard keypresses
     matrix_handled_pressed_keys(keyboard_hid_report);
+}
+
+bool matrix_key_pressed(uint32_t row, uint32_t col, bool also_when_handled) {
+    uint32_t row_data = pressed_bitmap[row];
+    if (!also_when_handled) {
+        row_data &= ~handled_bitmap[row];
+    }
+    return ((row_data >> col) & 1) == 1;
+}
+
+void matrix_mark_key_as_handled(uint32_t row, uint32_t col) {
+    handled_bitmap[row] |= 1 << col;
+}
+
+const uint32_t* matrix_get_pressed_bitmap(void) {
+    return (const uint32_t*)pressed_bitmap;
+}
+
+const uint32_t* matrix_get_handled_bitmap(void) {
+    return (const uint32_t*)handled_bitmap;
 }
