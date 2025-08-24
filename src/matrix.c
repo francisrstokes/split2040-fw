@@ -15,7 +15,7 @@
 // defines
 
 // options/configuration
-#define TAP_HOLD_DELAY_MS           (150)
+#define TAP_HOLD_DELAY_MS           (200)
 #define MAX_CONCURRENT_TAPHOLDS     (8)
 
 // regular defines
@@ -146,6 +146,93 @@ static void matrix_add_key_to_report(uint8_t* keyboard_hid_report, uint8_t kc) {
     }
 }
 
+static void matrix_handle_layer_presses(void) {
+    uint16_t key = KC_NONE;
+
+    for (uint row = 0; row < MATRIX_ROWS; row++) {
+        for (uint col = 0; col < MATRIX_COLS; col++) {
+            // Skip anything not pressed, or that has already been processed
+            if (((pressed_bitmap[row] >> col) & 1) != 1) continue;
+
+            key = keymap[layer_state.current][row][col];
+
+            if ((key & ENTRY_TYPE_MASK) == ENTRY_TYPE_LAYER) {
+                switch (key & ENTRY_ARG_MASK) {
+                    case LAYER_COM_MO: {
+                        // A momentary layer switch is only active while the key is pressed, i.e. the state has to be re-evaluated every scan
+                        layer_state.operation = LAYER_OPERATION_MO;
+                        layer_state.current = key & KC_MASK;
+
+                        // Don't process this entry on further operations
+                        pressed_bitmap[row] &= ~(1 << col);
+                    } break;
+                }
+            }
+        }
+    }
+}
+
+static void matrix_handle_taphold_presses(void) {
+    uint16_t key = KC_NONE;
+
+    for (uint row = 0; row < MATRIX_ROWS; row++) {
+        for (uint col = 0; col < MATRIX_COLS; col++) {
+            // Skip anything not pressed, or that has already been processed
+            if (((pressed_bitmap[row] >> col) & 1) != 1) continue;
+
+            // If this key is transparent, use the base layer instead
+            key = keymap[layer_state.current][row][col];
+
+            if ((key & ENTRY_TYPE_MASK) == ENTRY_TYPE_TAPHOLD) {
+                // Create a new taphold node from the pool
+                ll_node_t* taphold_node = lla_alloc_tail(&tapholds.allocator);
+                if (taphold_node != NULL) {
+                    // Initialise the data
+                    taphold_data_t* taphold = (taphold_data_t*)taphold_node->data;
+                    taphold->force_tap = false;
+                    taphold->hold_counter = 0;
+                    taphold->layer = layer_state.current;
+                    taphold->col = col;
+                    taphold->row = row;
+                }
+                pressed_bitmap[row] &= ~(1 << col);
+            }
+        }
+    }
+}
+
+static void matrix_handle_remaining_presses(uint8_t* keyboard_hid_report) {
+    uint16_t key = KC_NONE;
+    uint8_t kc_value = KC_NONE;
+
+    // Now we have some certainty about the current layer, check for keypresses
+    for (uint row = 0; row < MATRIX_ROWS; row++) {
+        for (uint col = 0; col < MATRIX_COLS; col++) {
+            // Skip anything not pressed, or that has already been processed
+            if (((pressed_bitmap[row] >> col) & 1) != 1) continue;
+
+            // If this key is transparent, use the base layer instead
+            key = keymap[layer_state.current][row][col];
+            if (key == KC_TRANS) {
+                key = keymap[layer_state.base][row][col];
+            }
+            kc_value = key & KC_MASK;
+
+            switch (key & ENTRY_TYPE_MASK) {
+                case ENTRY_TYPE_KC: {
+                    // The key matrix entry arg can contain any combination of(left) modifiers
+                    keyboard_hid_report[0] |= (key >> 8);
+                    matrix_add_key_to_report(keyboard_hid_report, kc_value);
+
+                    // this is a boot protocol keyboard, and it can't support more than 6 simultaneous keys.
+                    // officially, we should be reporting an error through the hid protocol if there were more than 6, but let's skip
+                    // that for now
+                } break;
+            }
+        }
+    }
+}
+
 static void matrix_update_active_tapholds(uint8_t* keyboard_hid_report) {
     ll_node_t* current_node = tapholds.allocator.active_head;
     taphold_data_t* current_taphold = NULL;
@@ -223,98 +310,13 @@ static void matrix_handled_pressed_keys(uint8_t* keyboard_hid_report) {
     uint16_t key = KC_NONE;
     uint8_t kc_value = KC_NONE;
 
-    // First scan for layer operations
-    for (uint row = 0; row < MATRIX_ROWS; row++) {
-        for (uint col = 0; col < MATRIX_COLS; col++) {
-            // Skip anything not pressed, or that has already been processed
-            if (((pressed_bitmap[row] >> col) & 1) != 1) continue;
+    matrix_handle_layer_presses();
 
-            key = keymap[layer_state.current][row][col];
-
-        switch (key & ENTRY_TYPE_MASK) {
-            case ENTRY_TYPE_LAYER: {
-                switch (key & ENTRY_ARG_MASK) {
-                    case LAYER_COM_MO: {
-                        // A momentary layer switch is only active while the key is pressed, i.e. the state has to be re-evaluated every scan
-                        layer_state.operation = LAYER_OPERATION_MO;
-                        layer_state.current = key & KC_MASK;
-
-                        // Don't process this entry on further operations
-                            pressed_bitmap[row] &= ~(1 << col);
-                    } break;
-                }
-            } break;
-
-            // Skip everything else, since we can't know which layer to reference in the keymap
-            }
-        }
-    }
-
-    // Before processing keys, update the active tapholds
     matrix_update_active_tapholds(keyboard_hid_report);
-
-    // Scan for new tapholds
-    for (uint row = 0; row < MATRIX_ROWS; row++) {
-        for (uint col = 0; col < MATRIX_COLS; col++) {
-            // Skip anything not pressed, or that has already been processed
-            if (((pressed_bitmap[row] >> col) & 1) != 1) continue;
-
-        // If this key is transparent, use the base layer instead
-            key = keymap[layer_state.current][row][col];
-        if (key == KC_TRANS) {
-                key = keymap[layer_state.base][row][col];
-        }
-        kc_value = key & KC_MASK;
-
-        switch (key & ENTRY_TYPE_MASK) {
-            case ENTRY_TYPE_TAPHOLD: {
-                // Create a new taphold node from the pool
-                ll_node_t* taphold_node = lla_alloc_tail(&tapholds.allocator);
-                if (taphold_node != NULL) {
-                    // Initialise the data
-                    taphold_data_t* taphold = (taphold_data_t*)taphold_node->data;
-                    taphold->force_tap = false;
-                    taphold->hold_counter = 0;
-                    taphold->layer = layer_state.current;
-                        taphold->col = col;
-                        taphold->row = row;
-                }
-                    pressed_bitmap[row] &= ~(1 << col);
-            } break;
-            }
-        }
-    }
-
-    // Before handling leftover regular keypresses, if there are any tapholds that were not yet in the holding state,
-    // but there are remaining keypresses, interrupt them
+    matrix_handle_taphold_presses();
     matrix_check_for_taphold_interruptions(keyboard_hid_report);
 
-    // Now we have some certainty about the current layer, check for keypresses
-    for (uint row = 0; row < MATRIX_ROWS; row++) {
-        for (uint col = 0; col < MATRIX_COLS; col++) {
-            // Skip anything not pressed, or that has already been processed
-            if (((pressed_bitmap[row] >> col) & 1) != 1) continue;
-
-            // If this key is transparent, use the base layer instead
-            key = keymap[layer_state.current][row][col];
-            if (key == KC_TRANS) {
-                key = keymap[layer_state.base][row][col];
-            }
-            kc_value = key & KC_MASK;
-
-            switch (key & ENTRY_TYPE_MASK) {
-            case ENTRY_TYPE_KC: {
-                // The key matrix entry arg can contain any combination of(left) modifiers
-                keyboard_hid_report[0] |= (key >> 8);
-                matrix_add_key_to_report(keyboard_hid_report, kc_value);
-
-                    // this is a boot protocol keyboard, and it can't support more than 6 simultaneous keys.
-                // officially, we should be reporting an error through the hid protocol if there were more than 6, but let's skip
-                // that for now
-                } break;
-                }
-        }
-    }
+    matrix_handle_remaining_presses(keyboard_hid_report);
 
     // Once all the keys are processed, we can check if we need to do something with the layer state
     if (layer_state.operation == LAYER_OPERATION_MO) {
@@ -380,7 +382,6 @@ void matrix_scan(uint8_t* keyboard_hid_report) {
             asm volatile("nop\n");
         }
     }
-    early_scan_stop:
 
     // Once the scan is complete, process the pressed keys, which could have functions beyond standard keypresses
     matrix_handled_pressed_keys(keyboard_hid_report);
