@@ -12,6 +12,7 @@ pico_sdk_init()
 add_executable(usb_keyboard
         src/usb_keyboard.c
         src/matrix.c
+        src/keyboard.c
         src/ll_alloc.c
         )
 

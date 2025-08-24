@@ -19,6 +19,7 @@
 // Device descriptors
 #include "descriptors.h"
 #include "matrix.h"
+#include "keyboard.h"
 
 #define usb_hw_set ((usb_hw_t *)hw_set_alias_untyped(usb_hw))
 #define usb_hw_clear ((usb_hw_t *)hw_clear_alias_untyped(usb_hw))
@@ -470,7 +471,7 @@ void ep1_in_handler(uint8_t *buf, uint16_t len) {
 }
 
 static bool matrix_scan_timer_cb(repeating_timer_t *rt) {
-    matrix_scan(next_keyboard_hid_report);
+    matrix_scan();
 
     // Only prepare a new interrupt response when something has changed (the hardware will nack the interrupt IN if no data is already in the buffer)
     if (memcmp(next_keyboard_hid_report, keyboard_hid_report, 8) != 0) {
@@ -483,6 +484,7 @@ static bool matrix_scan_timer_cb(repeating_timer_t *rt) {
 
 int main(void) {
     matrix_init();
+    keyboard_init(next_keyboard_hid_report);
     usb_device_init();
 
     // Wait until configured
