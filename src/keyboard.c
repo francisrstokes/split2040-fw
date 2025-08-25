@@ -66,7 +66,6 @@ typedef struct taphold_data_t {
     uint8_t col;
     uint8_t layer;
     uint8_t hold_counter;
-    bool force_tap;
 } taphold_data_t;
 
 typedef struct taphold_state_t {
@@ -160,7 +159,6 @@ static void keyboard_handle_taphold_presses(void) {
                 if (taphold_node != NULL) {
                     // Initialise the data
                     taphold_data_t* taphold = (taphold_data_t*)taphold_node->data;
-                    taphold->force_tap = false;
                     taphold->hold_counter = 0;
                     taphold->layer = layer_state.current;
                     taphold->col = col;
@@ -226,7 +224,7 @@ static void keyboard_update_active_tapholds(void) {
 
         // If the key was released before the hold delay timed out, we need to send the original key and cancel the taphold
         if (!is_pressed || (current_taphold->layer != layer_state.current)) {
-            if (current_taphold->hold_counter < TAP_HOLD_DELAY_MS && !current_taphold->force_tap) {
+            if (current_taphold->hold_counter < TAP_HOLD_DELAY_MS) {
                 uint8_t kc_value = keymap[current_taphold->layer][current_taphold->row][current_taphold->col] & 0xff;
                 keyboard_send_key(kc_value);
             }
@@ -239,10 +237,7 @@ static void keyboard_update_active_tapholds(void) {
         }
 
         // If we got here, the key is still held. Check if it's active, and use it's modifiers if so
-        if (current_taphold->force_tap) {
-            uint8_t kc_value = keymap[current_taphold->layer][current_taphold->row][current_taphold->col] & 0xff;
-            keyboard_send_key(kc_value);
-        } else if (current_taphold->hold_counter >= TAP_HOLD_DELAY_MS) {
+        if (current_taphold->hold_counter >= TAP_HOLD_DELAY_MS) {
             keyboard_hid_report_ref[0] |= (keymap[current_taphold->layer][current_taphold->row][current_taphold->col] >> 8) & 0xf;
         }
 
@@ -251,33 +246,20 @@ static void keyboard_update_active_tapholds(void) {
     }
 }
 
-static void keyboard_check_for_taphold_interruptions(void) {
-    bool there_are_unhandled_keys = false;
-    const uint32_t* pressed_keys = matrix_get_pressed_bitmap();
-    const uint32_t* handled_keys = matrix_get_handled_bitmap();
+static bool keyboard_taphold_should_ignore_other_keys(void) {
+    ll_node_t* current_node = tapholds.allocator.active_head;
+    taphold_data_t* current_taphold = NULL;
 
-    for (uint i = 0; i < MATRIX_ROWS; i++) {
-        there_are_unhandled_keys = there_are_unhandled_keys || ((pressed_keys[i] & ~handled_keys[i]) != 0);
-    }
-
-    if (there_are_unhandled_keys) {
-        ll_node_t* current_node = tapholds.allocator.active_head;
-        taphold_data_t* current_taphold = NULL;
-
-        while (current_node != NULL) {
-            current_taphold = (taphold_data_t*)current_node->data;
-            if (!current_taphold->force_tap && current_taphold->hold_counter < TAP_HOLD_DELAY_MS) {
-                uint8_t kc_value = keymap[current_taphold->layer][current_taphold->row][current_taphold->col] & 0xff;
-                keyboard_send_key(kc_value);
-
-                // Until released, this taphold only emits its tap kc, regardless of hold counter
-                current_taphold->force_tap = true;
-            } else {
-                current_node = current_node->next;
-            }
-            continue;
+    while (current_node != NULL) {
+        current_taphold = (taphold_data_t*)current_node->data;
+        if (current_taphold->hold_counter < TAP_HOLD_DELAY_MS) {
+            return true;
         }
+        current_node = current_node->next;
+        continue;
     }
+
+    return false;
 }
 
 static void keyboard_bootmagic(void) {
@@ -335,9 +317,10 @@ void keyboard_post_scan(void) {
 
     keyboard_update_active_tapholds();
     keyboard_handle_taphold_presses();
-    keyboard_check_for_taphold_interruptions();
 
-    keyboard_handle_remaining_presses();
+    if (!keyboard_taphold_should_ignore_other_keys()) {
+        keyboard_handle_remaining_presses();
+    }
 
     // Once all the keys are processed, we can check if we need to do something with the layer state
     if (layer_state.operation == LAYER_OPERATION_MO) {
