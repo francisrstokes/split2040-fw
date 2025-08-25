@@ -9,36 +9,60 @@
 #include "pico/types.h"
 #include "hid.h"
 
+// typedefs
+typedef uint32_t keymap_entry_t;
+
+/*
+ .   31:28   .   27:24   .         23:16         .          15:8         .          7:0          .
+ +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+ |   Type    |    Arg4   |          Arg8         |       Modifiers       |        keycode        |
+ +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+ .        Byte 3         .        Byte 2         .        Byte 1         .         Byte 0        .
+
+*/
+
 // defines
 #define NUM_LAYERS          (4)
 
-#define ENTRY_TYPE_MASK     (0xf000)
-#define ENTRY_ARG_MASK      (0x0f00)
+#define ENTRY_TYPE_MASK     (0xf0000000)
+#define ENTRY_ARG4_MASK     (0x0f000000)
+#define ENTRY_ARG4_SHIFT    (24)
+#define ENTRY_ARG8_MASK     (0x00ff0000)
+#define ENTRY_ARG8_SHIFT    (16)
 
-#define ENTRY_TYPE_KC       (0x0000)
-#define ENTRY_TYPE_LAYER    (0x1000)
-#define ENTRY_TYPE_TAPHOLD  (0x2000)
+#define ENTRY_ARG4(entry)   ((entry & ENTRY_ARG4_MASK) >> ENTRY_ARG4_SHIFT)
+#define ENTRY_ARG8(entry)   ((entry & ENTRY_ARG8_MASK) >> ENTRY_ARG8_SHIFT)
 
-#define KC_MASK             (0x00ff)
+#define ENTRY_TYPE_KC       (0x00000000)
+#define ENTRY_TYPE_LAYER    (0x10000000)
+#define ENTRY_TYPE_TAPHOLD  (0x20000000)
 
-#define LAYER_COM_MO        (0x0000)
+#define KC_MASK             (0x000000ff)
+#define KEY_MODS_MASK       (0x0000ff00)
+#define KEY_MODS_SHIFT      (8)
+
+#define KEY_MODS(entry)     ((entry & KEY_MODS_MASK) >> KEY_MODS_SHIFT)
+
+#define LAYER_COM_MO        (0x00 << ENTRY_ARG8_SHIFT)
 
 // matrix macros
 #define KEY(kc)             (kc)
 
-#define LC(kc)              KEY((1 << 8)  | kc)
-#define LS(kc)              KEY((1 << 9)  | kc)
-#define LA(kc)              KEY((1 << 10) | kc)
-#define LG(kc)              KEY((1 << 11) | kc)
+#define LC(kc)              KEY((1 << (KEY_MODS_SHIFT + 0)) | kc)
+#define LS(kc)              KEY((1 << (KEY_MODS_SHIFT + 1)) | kc)
+#define LA(kc)              KEY((1 << (KEY_MODS_SHIFT + 2)) | kc)
+#define LG(kc)              KEY((1 << (KEY_MODS_SHIFT + 3)) | kc)
 
 #define LAYER_COM(c, index) (ENTRY_TYPE_LAYER | (c) | (index))
 #define MO(index)           LAYER_COM(LAYER_COM_MO, index)
 
-#define TAP_HOLD(kc, mod)   (ENTRY_TYPE_TAPHOLD | (mod) | (kc))
-#define LC_T(kc)            TAP_HOLD(kc, (1 << 8))
-#define LS_T(kc)            TAP_HOLD(kc, (1 << 9))
-#define LA_T(kc)            TAP_HOLD(kc, (1 << 10))
-#define LG_T(kc)            TAP_HOLD(kc, (1 << 11))
+#define TAP_HOLD(tkc, hkc, mods)    (ENTRY_TYPE_TAPHOLD | (hkc << ENTRY_ARG8_SHIFT) | ((mods) << ENTRY_ARG4_SHIFT) | (tkc))
+#define MOD_TAP(kc, mods)           TAP_HOLD(kc, KC_NONE, mods)
+
+#define LC_T(kc)                    MOD_TAP(kc, (1 << 0))
+#define LS_T(kc)                    MOD_TAP(kc, (1 << 1))
+#define LA_T(kc)                    MOD_TAP(kc, (1 << 2))
+#define LG_T(kc)                    MOD_TAP(kc, (1 << 3))
 
 // key definitions
 #define KC_NONE     KEY(HID_KEY_NONE)
@@ -60,6 +84,7 @@
 #define KC_BRKT_R   KEY(HID_KEY_BRACKET_RIGHT)
 #define KC_EQ       KEY(HID_KEY_EQUAL)
 #define KC_BSLS     KEY(HID_KEY_BACKSLASH)
+#define KC_GRAVE    KEY(HID_KEY_GRAVE)
 
 #define KC_LCTL     KEY(HID_KEY_CONTROL_LEFT)
 #define KC_LSFT     KEY(HID_KEY_SHIFT_LEFT)
@@ -129,5 +154,5 @@
 
 // public functions
 void keyboard_init(uint8_t* keyboard_hid_report);
-bool keyboard_send_key(uint8_t kc);
+bool keyboard_send_key(keymap_entry_t key);
 void keyboard_post_scan(void);
