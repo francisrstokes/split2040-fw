@@ -33,9 +33,10 @@ typedef uint32_t keymap_entry_t;
 #define ENTRY_ARG4(entry)   ((entry & ENTRY_ARG4_MASK) >> ENTRY_ARG4_SHIFT)
 #define ENTRY_ARG8(entry)   ((entry & ENTRY_ARG8_MASK) >> ENTRY_ARG8_SHIFT)
 
-#define ENTRY_TYPE_KC       (0x00000000)
-#define ENTRY_TYPE_LAYER    (0x10000000)
-#define ENTRY_TYPE_TAPHOLD  (0x20000000)
+#define ENTRY_TYPE_KC           (0x00000000)
+#define ENTRY_TYPE_LAYER        (0x10000000)
+#define ENTRY_TYPE_TAPHOLD      (0x20000000)
+#define ENTRY_TYPE_DOUBLE_TAP   (0x30000000)
 
 #define KC_MASK             (0x000000ff)
 #define KEY_MODS_MASK       (0x0000ff00)
@@ -64,6 +65,9 @@ typedef uint32_t keymap_entry_t;
 #define LA_T(kc)                    MOD_TAP(kc, (1 << 2))
 #define LG_T(kc)                    MOD_TAP(kc, (1 << 3))
 
+#define DOUBLE_TAP(tkc, dkc, dmods) (ENTRY_TYPE_DOUBLE_TAP | (dkc << ENTRY_ARG8_SHIFT) | ((dmods) << ENTRY_ARG4_SHIFT) | (tkc))
+#define DT(tkc, dkc, dmods)         DOUBLE_TAP(tkc, dkc, dmods)
+
 // key definitions
 #define KC_NONE     KEY(HID_KEY_NONE)
 #define KC_TRANS    KEY(0x01)
@@ -85,6 +89,7 @@ typedef uint32_t keymap_entry_t;
 #define KC_EQ       KEY(HID_KEY_EQUAL)
 #define KC_BSLS     KEY(HID_KEY_BACKSLASH)
 #define KC_GRAVE    KEY(HID_KEY_GRAVE)
+#define KC_CAPS     KEY(HID_KEY_CAPS_LOCK)
 
 #define KC_LCTL     KEY(HID_KEY_CONTROL_LEFT)
 #define KC_LSFT     KEY(HID_KEY_SHIFT_LEFT)
