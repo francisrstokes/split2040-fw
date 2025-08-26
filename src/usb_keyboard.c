@@ -493,7 +493,7 @@ int main(void) {
     }
 
     // After we're configured, setup a repeating timer for scanning the key matrix
-    add_repeating_timer_ms(-1, matrix_scan_timer_cb, NULL, &matrix_scan_timer);
+    add_repeating_timer_ms(-MATRIX_SCAN_INTERVAL_MS, matrix_scan_timer_cb, NULL, &matrix_scan_timer);
 
     while (1) {
         tight_loop_contents();

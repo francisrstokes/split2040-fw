@@ -136,7 +136,7 @@ static const struct usb_endpoint_descriptor ep1_in = {
     .bEndpointAddress = EP1_IN_ADDR, // EP number 1, IN from host (tx from device)
     .bmAttributes     = USB_TRANSFER_TYPE_INTERRUPT,
     .wMaxPacketSize   = 8,
-    .bInterval        = 1 // 1ms / 1kHz
+    .bInterval        = 10 // 10ms / 100Hz
 };
 
 static const struct usb_hid_descriptor hid_descriptor = {
