@@ -16,6 +16,10 @@
 // options/configuration
 #define TAP_HOLD_DELAY_MS           (200)
 #define DOUBLE_TAP_DELAY_MS         (200)
+#define NUM_COMBO_SLOTS             (16)
+#define MAX_KEYS_PER_COMBO          (4)
+#define COMBO_DELAY_MS              (50)
+
 #define MAX_CONCURRENT_TAPHOLDS     (8)
 #define MAX_CONCURRENT_DOUBLE_TAPS  (8)
 
@@ -108,12 +112,57 @@ static layer_state_t layer_state = {
     .operation = LAYER_OPERATION_NONE
 };
 
+typedef struct rowcol_t {
+    uint8_t row;
+    uint8_t col;
+} rowcol_t;
+
+typedef enum combo_state_t {
+    combo_state_invalid = 0,
+    combo_state_inactive,
+    combo_state_active,
+    combo_state_cancelled
+} combo_state_t;
+
+typedef struct combo_t {
+    combo_state_t state;
+    uint8_t time_since_first_press;
+    uint8_t keys_pressed_bitmask;
+    keymap_entry_t keys[MAX_KEYS_PER_COMBO];
+    rowcol_t key_positions[MAX_KEYS_PER_COMBO];
+    keymap_entry_t key_out;
+} combo_t;
+
+#define COMBO(key0, key1, key2, key3, output_key)   {.state = combo_state_inactive, .keys = {key0, key1, key2, key3}, .key_out = output_key}
+#define COMBO2(key0, key1, key_out)                 COMBO(key0, key1, KC_NONE, KC_NONE, key_out)
+#define COMBO3(key0, key1, key2, key_out)           COMBO(key0, key1, key2, KC_NONE, key_out)
+#define COMBO4(key0, key1, key2, key3, key_out)     COMBO(key0, key1, key2, key3, key_out)
+#define COMBO_UNUSED                                {.state = combo_state_invalid}
+
 static uint8_t* keyboard_hid_report_ref = NULL;
 static uint8_t report_press_count = 0;
 static taphold_state_t tapholds = {0};
 static double_tap_state_t double_taps = {0};
+static combo_t combos[NUM_COMBO_SLOTS] = {
+    [0]  = COMBO2(KC_E,         KC_R,           LS(KC_9)),       // (
+    [1]  = COMBO2(KC_U,         KC_I,           LS(KC_0)),       // )
+    [2]  = COMBO2(KC_C,         KC_V,           KC_BRKT_L),      // [
+    [3]  = COMBO2(KC_M,         KC_COMMA,       KC_BRKT_R),      // ]
+    [4]  = COMBO2(KC_V,         KC_B,           LS(KC_BRKT_L)),  // {
+    [5]  = COMBO2(KC_N,         KC_M,           LS(KC_BRKT_R)),  // }
+    [6]  = COMBO2(KC_W,         KC_E,           KC_TAB),         // Tab
+    [7]  = COMBO2(KC_I,         KC_O,           KC_TAB),         // Tab
+    [8]  = COMBO2(KC_O,         KC_P,           KC_CAPS),        // Caps Lock
+    [9]  = COMBO2(KC_Q,         KC_W,           KC_CAPS),        // Caps Lock
+    [10] = COMBO_UNUSED,
+    [11] = COMBO_UNUSED,
+    [12] = COMBO_UNUSED,
+    [13] = COMBO_UNUSED,
+    [14] = COMBO_UNUSED,
+    [15] = COMBO_UNUSED,
+};
 
-static keymap_entry_t keymap[NUM_LAYERS][MATRIX_ROWS][MATRIX_COLS] = {
+static const keymap_entry_t keymap[NUM_LAYERS][MATRIX_ROWS][MATRIX_COLS] = {
     [LAYER_QWERTY] = {
         {GRV_ESC,   KC_Q,       KC_W,       KC_E,           KC_R,           KC_T,       /* split */     KC_Y,       KC_U,           KC_I,       KC_O,       KC_P,           KC_BSPC},
         {KC_TAB,    LG_T(KC_A), LA_T(KC_S), LS_T(KC_D),     LC_T(KC_F),     KC_G,       /* split */     KC_H,       LC_T(KC_J),     LS_T(KC_K), LA_T(KC_L), LG_T(KC_SCLN),  KC_QUOTE},
@@ -389,6 +438,121 @@ static bool keyboard_double_tap_should_ignore_other_keys(void) {
     return false;
 }
 
+static void keyboard_handle_combo_presses(void) {
+    keymap_entry_t key = KC_NONE;
+
+    // Update timers, and check if cancelled combos have had all their keys released
+    for (uint i = 0; i < NUM_COMBO_SLOTS; i++) {
+        // The first invalid combo slot marks the end of defined combos
+        if (combos[i].state == combo_state_invalid) break;
+
+        // Update all the active timers, and mark any that have passed as inactive
+        if (combos[i].state == combo_state_active) {
+            combos[i].time_since_first_press += MATRIX_SCAN_INTERVAL_MS;
+            if (combos[i].time_since_first_press >= COMBO_DELAY_MS) {
+                combos[i].state = combo_state_cancelled;
+            }
+        } else if (combos[i].state == combo_state_cancelled) {
+            // Have all the keys associated with this combo been released?
+            bool all_released = true;
+            for (uint key_index = 0; key_index < MAX_KEYS_PER_COMBO; key_index++) {
+                if (combos[i].keys[key_index] == KC_NONE) break;
+                if (matrix_key_pressed(combos[i].key_positions[key_index].row, combos[i].key_positions[key_index].col, true)) {
+                    all_released = false;
+                }
+            }
+
+            // When all keys have finally been released, go to a combo cooldown period
+            if (all_released) {
+                combos[i].state = combo_state_inactive;
+                continue;
+            } else {
+                for (uint key_index = 0; key_index < MAX_KEYS_PER_COMBO; key_index++) {
+                    if (combos[i].keys[key_index] == KC_NONE) break;
+                    matrix_mark_key_as_handled(combos[i].key_positions[key_index].row, combos[i].key_positions[key_index].col);
+                }
+            }
+        }
+    }
+
+    // Scan over the keys, noting those part of combos
+    for (uint row = 0; row < MATRIX_ROWS; row++) {
+        for (uint col = 0; col < MATRIX_COLS; col++) {
+            // We only care about keys that are pressed on this scan
+            if (!matrix_key_pressed_this_scan(row, col)) continue;
+
+            key = keymap[layer_state.current][row][col];
+
+            for (uint i = 0; i < NUM_COMBO_SLOTS; i++) {
+                if (combos[i].state == combo_state_invalid) break;
+                if (combos[i].state == combo_state_cancelled) continue;
+
+                for (uint key_index = 0; key_index < MAX_KEYS_PER_COMBO; key_index++) {
+                    // A none key marks the end of the keys involved in this combo
+                    if (combos[i].keys[key_index] == KC_NONE) continue;
+
+                    if (key == combos[i].keys[key_index]) {
+                        if (combos[i].state == combo_state_inactive) {
+                            combos[i].state = combo_state_active;
+                            // Set all the key positions to 0xff, since 0x00 will always be a valid column and row and could cause misfires
+                            memset(combos[i].key_positions, 0xff, sizeof(combos[i].key_positions));
+                            combos[i].time_since_first_press = 0;
+                        }
+
+                        combos[i].keys_pressed_bitmask |= (1 << key_index);
+                        combos[i].key_positions[key_index].row = row;
+                        combos[i].key_positions[key_index].col = col;
+                        matrix_mark_key_as_handled(row, col);
+                    }
+                }
+            }
+        }
+    }
+
+    // Loop through the active combos, and emit any which were fulfilled
+    for (uint i = 0; i < NUM_COMBO_SLOTS; i++) {
+        if (combos[i].state == combo_state_invalid) break;
+        if (combos[i].state != combo_state_active) continue;
+
+        // First of all, were any of the keys that we had marked as pressed released this scan?
+        bool cancelled = false;
+        for (uint key_index = 0; key_index < MAX_KEYS_PER_COMBO; key_index++) {
+            if (combos[i].keys[key_index] == KC_NONE) break;
+            if (matrix_key_released_this_scan(combos[i].key_positions[key_index].row, combos[i].key_positions[key_index].col)) {
+                cancelled = true;
+            }
+        }
+
+        if (cancelled) {
+            combos[i].state = combo_state_cancelled;
+            continue;
+        }
+
+        bool all_keys_pressed = true;
+        for (uint key_index = 0; key_index < MAX_KEYS_PER_COMBO; key_index++) {
+            if (combos[i].keys[key_index] == KC_NONE) break;
+
+            // Also check handled keys, since any pressed on this scan would have been marked
+            if (!matrix_key_pressed(combos[i].key_positions[key_index].row, combos[i].key_positions[key_index].col, true)) {
+                all_keys_pressed = false;
+                break;
+            }
+        }
+
+        // Check if all were pressed, and send combo key
+        if (all_keys_pressed) {
+            keyboard_send_key(combos[i].key_out);
+            combos[i].state = combo_state_cancelled;
+
+            // Mark the keys involved as handled
+            for (uint key_index = 0; key_index < MAX_KEYS_PER_COMBO; key_index++) {
+                if (combos[i].keys[key_index] == KC_NONE) break;
+                matrix_mark_key_as_handled(combos[i].key_positions[key_index].row, combos[i].key_positions[key_index].col);
+            }
+        }
+    }
+}
+
 static void keyboard_bootmagic(void) {
     gpio_put(matrix_get_col_gpio(BOOTMAGIC_COL), true);
     sleep_ms(1);
@@ -454,6 +618,14 @@ void keyboard_post_scan(void) {
     // Clear the report
     memset(keyboard_hid_report_ref, 0, 8);
     report_press_count = 0;
+
+    // Quick and dirty reset to bootloader, should move this to a proper key handler
+    if (matrix_key_pressed(0, 0, true) && matrix_key_pressed(1, 1, true) && matrix_key_pressed(2, 2, true)) {
+        reset_usb_boot(0, 0);
+    }
+
+    // Handle combos before layer change operations to allow for the layer changing keys themselves to be used for combos
+    keyboard_handle_combo_presses();
 
     // Process the keypresses in sequence, handling layer changes and more complex operations before simple presses
     keyboard_handle_layer_presses();
