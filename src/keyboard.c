@@ -6,6 +6,7 @@
 
 #include "keyboard.h"
 #include "taphold.h"
+#include "doubletap.h"
 #include "matrix.h"
 
 #include <string.h>
@@ -14,12 +15,9 @@
 #include "pico/bootrom.h"
 
 // options/configuration
-#define DOUBLE_TAP_DELAY_MS         (200)
 #define NUM_COMBO_SLOTS             (16)
 #define MAX_KEYS_PER_COMBO          (4)
 #define COMBO_DELAY_MS              (50)
-
-#define MAX_CONCURRENT_DOUBLE_TAPS  (8)
 
 #define BOOTMAGIC_COL               (0)
 #define BOOTMAGIC_ROW               (0)
@@ -42,6 +40,7 @@
 #define FN                      MO(LAYER_FN)
 
 #define GRV_ESC                 TAP_HOLD(KC_ESC, KC_GRAVE, 0x00)
+#define BS_DEL                  TAP_HOLD(KC_BSPC, KC_DEL, 0x00)
 
 #define C_LEFT                  LC(KC_LEFT)
 #define C_DOWN                  LC(KC_DOWN)
@@ -68,27 +67,6 @@ typedef struct layer_state_t {
     uint8_t current;
     uint8_t operation;
 } layer_state_t;
-
-typedef enum dt_state_t {
-    dt_state_wait_first_release = 0,
-    dt_state_wait_second_press,
-    dt_state_single_tap,
-    dt_state_double_tap
-} dt_state_t;
-
-typedef struct double_tap_data_t {
-    uint8_t row;
-    uint8_t col;
-    uint8_t layer;
-    uint8_t time_since_first_tap;
-    dt_state_t state;
-} double_tap_data_t;
-
-typedef struct double_tap_state_t {
-    double_tap_data_t data_array[MAX_CONCURRENT_DOUBLE_TAPS];
-    ll_node_t node_array[MAX_CONCURRENT_DOUBLE_TAPS];
-    ll_allocator_t allocator;
-} double_tap_state_t;
 
 // statics
 static layer_state_t layer_state = {
@@ -126,7 +104,6 @@ typedef struct combo_t {
 
 static uint8_t* keyboard_hid_report_ref = NULL;
 static uint8_t report_press_count = 0;
-static double_tap_state_t double_taps = {0};
 static combo_t combos[NUM_COMBO_SLOTS] = {
     [0]  = COMBO2(KC_E,         KC_R,           LS(KC_9)),       // (
     [1]  = COMBO2(KC_U,         KC_I,           LS(KC_0)),       // )
@@ -148,7 +125,7 @@ static combo_t combos[NUM_COMBO_SLOTS] = {
 
 static const keymap_entry_t keymap[NUM_LAYERS][MATRIX_ROWS][MATRIX_COLS] = {
     [LAYER_QWERTY] = {
-        {GRV_ESC,   KC_Q,       KC_W,       KC_E,           KC_R,           KC_T,       /* split */     KC_Y,       KC_U,           KC_I,       KC_O,       KC_P,           KC_BSPC},
+        {GRV_ESC,   KC_Q,       KC_W,       KC_E,           KC_R,           KC_T,       /* split */     KC_Y,       KC_U,           KC_I,       KC_O,       KC_P,           BS_DEL},
         {KC_TAB,    LG_T(KC_A), LA_T(KC_S), LS_T(KC_D),     LC_T(KC_F),     KC_G,       /* split */     KC_H,       LC_T(KC_J),     LS_T(KC_K), LA_T(KC_L), LG_T(KC_SCLN),  KC_QUOTE},
         {KC_LSFT,   KC_Z,       KC_X,       KC_C,           KC_V,           KC_B,       /* split */     KC_N,       KC_M,           KC_COMMA,   KC_DOT,     KC_SLASH,       KC_ENTER},
         {KC_LCTL,   KC_HOME,    KC_LALT,    KC_LGUI,        LOWER,          SPC_ENT,    /* split */     KC_SPC,     RAISE,          KC_END,     KC_HOME,    KC_RSFT,        KC_RCTL}
@@ -229,107 +206,6 @@ static void keyboard_handle_remaining_presses(void) {
             }
         }
     }
-}
-
-static void keyboard_update_active_double_taps(void) {
-    ll_node_t* current_node = double_taps.allocator.active_head;
-    double_tap_data_t* current_dt = NULL;
-    keymap_entry_t key = KC_NONE;
-    bool timer_expired = false;
-    bool node_became_inactive = false;
-
-    while (current_node != NULL) {
-        current_dt = (double_tap_data_t*)current_node->data;
-
-        // Update the timer
-        current_dt->time_since_first_tap += MATRIX_SCAN_INTERVAL_MS;
-        bool timer_expired = current_dt->time_since_first_tap >= DOUBLE_TAP_DELAY_MS;
-        if (timer_expired) {
-            current_dt->time_since_first_tap = DOUBLE_TAP_DELAY_MS;
-        }
-
-        bool key_is_pressed = matrix_key_pressed(current_dt->row, current_dt->col, true);
-
-        // Handle the states where the outcome is not yet known
-        if (current_dt->state == dt_state_wait_first_release) {
-            if (timer_expired) {
-                current_dt->state = dt_state_single_tap;
-            } else if (!key_is_pressed) {
-                current_dt->state = dt_state_wait_second_press;
-            }
-        } else if (current_dt->state == dt_state_wait_second_press) {
-            if (timer_expired) {
-                current_dt->state = dt_state_single_tap;
-            } else if (key_is_pressed) {
-                current_dt->state = dt_state_double_tap;
-            }
-        }
-
-        // Handle taps and double taps (note: this accounts for state changes that occurred on this tick)
-        key = keymap[current_dt->layer][current_dt->row][current_dt->col];
-        if (current_dt->state == dt_state_single_tap) {
-            keyboard_send_key(key);
-            node_became_inactive = !key_is_pressed;
-        } else if (current_dt->state == dt_state_double_tap) {
-            keyboard_send_key((ENTRY_ARG4(key) << KEY_MODS_SHIFT ) | ENTRY_ARG8(key));
-            node_became_inactive = !key_is_pressed;
-        }
-
-        if (node_became_inactive) {
-            ll_node_t* next_current = current_node->next;
-            lla_free(&double_taps.allocator, current_node);
-            current_node = next_current;
-            continue;
-        }
-
-        // On to the next
-        current_node = current_node->next;
-    }
-}
-
-static void keyboard_handle_double_tap_presses(void) {
-    keymap_entry_t key = KC_NONE;
-
-    for (uint row = 0; row < MATRIX_ROWS; row++) {
-        for (uint col = 0; col < MATRIX_COLS; col++) {
-            // Skip anything not pressed, or that has already been processed
-            if (!matrix_key_pressed(row, col, false)) continue;
-
-            // If this key is transparent, use the base layer instead
-            key = keymap[layer_state.current][row][col];
-
-            if ((key & ENTRY_TYPE_MASK) == ENTRY_TYPE_DOUBLE_TAP) {
-                // Create a new double tap node from the pool
-                ll_node_t* dt_node = lla_alloc_tail(&double_taps.allocator);
-                if (dt_node != NULL) {
-                    // Initialise the data
-                    double_tap_data_t* dt = (double_tap_data_t*)dt_node->data;
-                    dt->time_since_first_tap = 0;
-                    dt->layer = layer_state.current;
-                    dt->col = col;
-                    dt->row = row;
-                    dt->state = dt_state_wait_first_release;
-                }
-                matrix_mark_key_as_handled(row, col);
-            }
-        }
-    }
-}
-
-static bool keyboard_double_tap_should_ignore_other_keys(void) {
-    ll_node_t* current_node = double_taps.allocator.active_head;
-    double_tap_data_t* current_dt = NULL;
-
-    while (current_node != NULL) {
-        current_dt = (double_tap_data_t*)current_node->data;
-        if (current_dt->time_since_first_tap < DOUBLE_TAP_DELAY_MS) {
-            return true;
-        }
-        current_node = current_node->next;
-        continue;
-    }
-
-    return false;
 }
 
 static void keyboard_handle_combo_presses(void) {
@@ -467,13 +343,7 @@ void keyboard_init(uint8_t* keyboard_hid_report) {
     taphold_init();
 
     // Init the double tap state
-    lla_init(
-        &double_taps.allocator,
-        double_taps.data_array,
-        double_taps.node_array,
-        MAX_CONCURRENT_DOUBLE_TAPS,
-        sizeof(double_tap_data_t)
-    );
+    double_tap_init();
 }
 
 bool keyboard_send_key(keymap_entry_t key) {
@@ -522,12 +392,14 @@ void keyboard_post_scan(void) {
     // Process the keypresses in sequence, handling layer changes and more complex operations before simple presses
     keyboard_handle_layer_presses();
 
-    bool ignore_from_taphold = taphold_update();
+    // Tapholds
+    bool ignore_remaining_keypresses = taphold_update();
 
-    keyboard_update_active_double_taps();
-    keyboard_handle_double_tap_presses();
+    // Double taps
+    ignore_remaining_keypresses = double_tap_update() || ignore_remaining_keypresses;
 
-    if (!(ignore_from_taphold || keyboard_double_tap_should_ignore_other_keys())) {
+    // Regular keypresses that haven't been suppressed by other functionalities
+    if (!ignore_remaining_keypresses) {
         keyboard_handle_remaining_presses();
     }
 

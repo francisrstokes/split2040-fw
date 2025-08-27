@@ -73,6 +73,7 @@ typedef uint32_t keymap_entry_t;
 #define KC_TRANS    KEY(0x01)
 #define KC_ESC      KEY(HID_KEY_ESCAPE)
 #define KC_BSPC     KEY(HID_KEY_BACKSPACE)
+#define KC_DEL      KEY(HID_KEY_DELETE)
 #define KC_TAB      KEY(HID_KEY_TAB)
 #define KC_SCLN     KEY(HID_KEY_SEMICOLON)
 #define KC_QUOTE    KEY(HID_KEY_APOSTROPHE)
