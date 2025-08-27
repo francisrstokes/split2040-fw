@@ -160,4 +160,7 @@ typedef uint32_t keymap_entry_t;
 // public functions
 void keyboard_init(uint8_t* keyboard_hid_report);
 bool keyboard_send_key(keymap_entry_t key);
+void keyboard_send_modifiers(uint8_t modifiers);
 void keyboard_post_scan(void);
+keymap_entry_t keyboard_resolve_key(uint row, uint col);
+uint8_t keyboard_get_current_layer(void);

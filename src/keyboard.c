@@ -645,3 +645,18 @@ void keyboard_post_scan(void) {
         layer_state.current = layer_state.base;
     }
 }
+
+keymap_entry_t keyboard_resolve_key(uint row, uint col) {
+    if (row >= MATRIX_ROWS || col >= MATRIX_COLS) return KC_NONE;
+
+    keymap_entry_t key = keymap[layer_state.current][row][col];
+    if (key == KC_TRANS) {
+        key = keymap[layer_state.base][row][col];
+    }
+
+    return key;
+}
+
+uint8_t keyboard_get_current_layer(void) {
+    return layer_state.current;
+}
