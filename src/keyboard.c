@@ -37,7 +37,6 @@
 #define FN                      MO(LAYER_FN)
 
 #define GRV_ESC                 TAP_HOLD(KC_ESC, KC_GRAVE, 0x00)
-#define BS_DEL                  TAP_HOLD(KC_BSPC, KC_DEL, 0x00)
 
 #define C_LEFT                  LC(KC_LEFT)
 #define C_DOWN                  LC(KC_DOWN)
@@ -96,7 +95,7 @@ static combo_t combos[NUM_COMBO_SLOTS] = {
 
 static const keymap_entry_t keymap[NUM_LAYERS][MATRIX_ROWS][MATRIX_COLS] = {
     [LAYER_QWERTY] = {
-        {GRV_ESC,   KC_Q,       KC_W,       KC_E,           KC_R,           KC_T,       /* split */     KC_Y,       KC_U,           KC_I,       KC_O,       KC_P,           BS_DEL},
+        {GRV_ESC,   KC_Q,       KC_W,       KC_E,           KC_R,           KC_T,       /* split */     KC_Y,       KC_U,           KC_I,       KC_O,       KC_P,           KC_BSPC},
         {KC_TAB,    LG_T(KC_A), LA_T(KC_S), LS_T(KC_D),     LC_T(KC_F),     KC_G,       /* split */     KC_H,       LC_T(KC_J),     LS_T(KC_K), LA_T(KC_L), LG_T(KC_SCLN),  KC_QUOTE},
         {KC_LSFT,   KC_Z,       KC_X,       KC_C,           KC_V,           KC_B,       /* split */     KC_N,       KC_M,           KC_COMMA,   KC_DOT,     KC_SLASH,       KC_ENTER},
         {KC_LCTL,   KC_HOME,    KC_LALT,    KC_LGUI,        LOWER,          SPC_ENT,    /* split */     KC_SPC,     RAISE,          KC_END,     KC_HOME,    KC_RSFT,        KC_RCTL}
@@ -110,7 +109,7 @@ static const keymap_entry_t keymap[NUM_LAYERS][MATRIX_ROWS][MATRIX_COLS] = {
     },
 
     [LAYER_RAISE] = {
-        {____,      KC_BRKT_L,  KC_BRKT_R,  LS(KC_BRKT_L),  LS(KC_BRKT_R),  ____,       /* split */      ____,       LS(KC_BSLS),   KC_BSLS,    KC_EQ,      ____,           ____},
+        {____,      KC_BRKT_L,  KC_BRKT_R,  LS(KC_BRKT_L),  LS(KC_BRKT_R),  ____,       /* split */      ____,       LS(KC_BSLS),   KC_BSLS,    KC_EQ,      ____,           KC_DEL},
         {____,      S_1,        S_2,        S_3,            S_4,            S_5,        /* split */      S_6,        S_7,           S_8,        S_9,        S_0,            S_MINUS},
         {____,      ____,       ____,       ____,           ____,           ____,       /* split */      ____,       KC_LEFT,       KC_DOWN,    KC_UP,      KC_RIGHT,       ____},
         {KC_CAPS,   ____,       ____,       ____,           ____,           ____,       /* split */      ____,       ____,          ____,       ____,       ____,           ____}
@@ -179,6 +178,15 @@ static void keyboard_handle_remaining_presses(void) {
     }
 }
 
+static void keyboard_on_key_release(uint row, uint col, keymap_entry_t key) {
+    if ((key & ENTRY_TYPE_MASK) == ENTRY_TYPE_LAYER) {
+        if ((key & ENTRY_ARG8_MASK) == LAYER_COM_MO) {
+            // If a momentary layer key is released, ignore active keypresses until they're released
+            matrix_suppress_held_until_release();
+        }
+    }
+}
+
 static void keyboard_bootmagic(void) {
     gpio_put(matrix_get_col_gpio(BOOTMAGIC_COL), true);
     sleep_ms(1);
@@ -243,6 +251,16 @@ void keyboard_post_scan(void) {
     // Quick and dirty reset to bootloader, should move this to a proper key handler
     if (matrix_key_pressed(0, 0, true) && matrix_key_pressed(1, 1, true) && matrix_key_pressed(2, 2, true)) {
         reset_usb_boot(0, 0);
+    }
+
+    // Before processing the keypresses, handle any released keys
+    const uint32_t* released_bitmap = matrix_get_released_this_scan_bitmap();
+    for (uint row = 0; row < MATRIX_ROWS; row++) {
+        for (uint col = 0; col < MATRIX_COLS; col++) {
+            if (released_bitmap[row] & (1 << col)) {
+                keyboard_on_key_release(row, col, keyboard_resolve_key(row, col));
+            }
+        }
     }
 
     // Handle combos before layer change operations to allow for the layer changing keys themselves to be used for combos

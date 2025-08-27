@@ -17,6 +17,7 @@ static uint32_t pressed_bitmap[MATRIX_ROWS] = {0};
 static uint32_t handled_bitmap[MATRIX_ROWS] = {0};
 static uint32_t pressed_this_scan_bitmap[MATRIX_ROWS] = {0};
 static uint32_t released_this_scan_bitmap[MATRIX_ROWS] = {0};
+static uint32_t suppressed_until_release[MATRIX_ROWS] = {0};
 
 // private functions
 static uint matrix_cols[MATRIX_COLS] = { 5, 4, 3, 2, 1, 0, 20, 21, 22, 26, 27, 28 };
@@ -74,6 +75,7 @@ void matrix_scan(void) {
     for (uint row = 0; row < MATRIX_ROWS; row++) {
         pressed_this_scan_bitmap[row] = ~prev_pressed_bitmap[row] & pressed_bitmap[row];
         released_this_scan_bitmap[row] = prev_pressed_bitmap[row] & ~pressed_bitmap[row];
+        suppressed_until_release[row] &= ~released_this_scan_bitmap[row];
     }
 
     // Once the scan is complete, hand off to the keyboard to process the key presses
@@ -82,10 +84,18 @@ void matrix_scan(void) {
 
 bool matrix_key_pressed(uint32_t row, uint32_t col, bool also_when_handled) {
     if (row >= MATRIX_ROWS || col >= MATRIX_COLS) return false;
+
+    // Start with all currently pressed keys
     uint32_t row_data = pressed_bitmap[row];
+
+    // Filter out the handled keys if configured
     if (!also_when_handled) {
         row_data &= ~handled_bitmap[row];
     }
+
+    // Always filter out suppressed keys
+    row_data &= ~suppressed_until_release[row];
+
     return ((row_data >> col) & 1) == 1;
 }
 
@@ -97,6 +107,12 @@ bool matrix_key_pressed_this_scan(uint32_t row, uint32_t col) {
 bool matrix_key_released_this_scan(uint32_t row, uint32_t col) {
     if (row >= MATRIX_ROWS || col >= MATRIX_COLS) return false;
     return ((released_this_scan_bitmap[row] >> col) & 1) == 1;
+}
+
+void matrix_suppress_held_until_release(void) {
+    for (uint row = 0; row < MATRIX_ROWS; row++) {
+        suppressed_until_release[row] |= pressed_bitmap[row];
+    }
 }
 
 void matrix_mark_key_as_handled(uint32_t row, uint32_t col) {
@@ -115,6 +131,10 @@ const uint32_t* matrix_get_pressed_bitmap(void) {
 
 const uint32_t* matrix_get_handled_bitmap(void) {
     return (const uint32_t*)handled_bitmap;
+}
+
+const uint32_t* matrix_get_released_this_scan_bitmap(void) {
+    return (const uint32_t*)released_this_scan_bitmap;
 }
 
 const uint matrix_get_col_gpio(uint col) {
