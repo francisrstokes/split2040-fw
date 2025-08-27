@@ -32,8 +32,12 @@ void combo_update(void) {
             combos[i].time_since_first_press += MATRIX_SCAN_INTERVAL_MS;
             if (combos[i].time_since_first_press >= COMBO_DELAY_MS) {
                 combos[i].state = combo_state_cancelled;
+                combos[i].time_since_first_press = 0;
             }
         } else if (combos[i].state == combo_state_cancelled) {
+            // When cancelled, the timer is used to temporarily supress the involved key outputs
+            combos[i].time_since_first_press += MATRIX_SCAN_INTERVAL_MS;
+
             // Have all the keys associated with this combo been released?
             bool all_released = true;
             for (uint key_index = 0; key_index < MAX_KEYS_PER_COMBO; key_index++) {
@@ -48,9 +52,14 @@ void combo_update(void) {
                 combos[i].state = combo_state_inactive;
                 continue;
             } else {
-                for (uint key_index = 0; key_index < MAX_KEYS_PER_COMBO; key_index++) {
-                    if (combos[i].keys[key_index] == KC_NONE) break;
-                    matrix_mark_key_as_handled(combos[i].key_positions[key_index].row, combos[i].key_positions[key_index].col);
+                if (combos[i].time_since_first_press < COMBO_CANCEL_SUPPRESS_MS) {
+                    for (uint key_index = 0; key_index < MAX_KEYS_PER_COMBO; key_index++) {
+                        if (combos[i].keys[key_index] == KC_NONE) break;
+                        matrix_mark_key_as_handled(combos[i].key_positions[key_index].row, combos[i].key_positions[key_index].col);
+                    }
+                } else {
+                    // Clamp the timer to avoid overflow issues
+                    combos[i].time_since_first_press = COMBO_CANCEL_SUPPRESS_MS;
                 }
             }
         }

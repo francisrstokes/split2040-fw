@@ -13,6 +13,7 @@
 #define NUM_COMBO_SLOTS             (16)
 #define MAX_KEYS_PER_COMBO          (4)
 #define COMBO_DELAY_MS              (50)
+#define COMBO_CANCEL_SUPPRESS_MS    (150)
 
 // typedefs
 typedef struct rowcol_t {
