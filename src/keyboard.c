@@ -5,8 +5,8 @@
  */
 
 #include "keyboard.h"
+#include "taphold.h"
 #include "matrix.h"
-#include "ll_alloc.h"
 
 #include <string.h>
 
@@ -14,13 +14,11 @@
 #include "pico/bootrom.h"
 
 // options/configuration
-#define TAP_HOLD_DELAY_MS           (200)
 #define DOUBLE_TAP_DELAY_MS         (200)
 #define NUM_COMBO_SLOTS             (16)
 #define MAX_KEYS_PER_COMBO          (4)
 #define COMBO_DELAY_MS              (50)
 
-#define MAX_CONCURRENT_TAPHOLDS     (8)
 #define MAX_CONCURRENT_DOUBLE_TAPS  (8)
 
 #define BOOTMAGIC_COL               (0)
@@ -70,19 +68,6 @@ typedef struct layer_state_t {
     uint8_t current;
     uint8_t operation;
 } layer_state_t;
-
-typedef struct taphold_data_t {
-    uint8_t row;
-    uint8_t col;
-    uint8_t layer;
-    uint8_t hold_counter;
-} taphold_data_t;
-
-typedef struct taphold_state_t {
-    taphold_data_t data_array[MAX_CONCURRENT_TAPHOLDS];
-    ll_node_t node_array[MAX_CONCURRENT_TAPHOLDS];
-    ll_allocator_t allocator;
-} taphold_state_t;
 
 typedef enum dt_state_t {
     dt_state_wait_first_release = 0,
@@ -141,7 +126,6 @@ typedef struct combo_t {
 
 static uint8_t* keyboard_hid_report_ref = NULL;
 static uint8_t report_press_count = 0;
-static taphold_state_t tapholds = {0};
 static double_tap_state_t double_taps = {0};
 static combo_t combos[NUM_COMBO_SLOTS] = {
     [0]  = COMBO2(KC_E,         KC_R,           LS(KC_9)),       // (
@@ -219,34 +203,6 @@ static void keyboard_handle_layer_presses(void) {
     }
 }
 
-static void keyboard_handle_taphold_presses(void) {
-    keymap_entry_t key = KC_NONE;
-
-    for (uint row = 0; row < MATRIX_ROWS; row++) {
-        for (uint col = 0; col < MATRIX_COLS; col++) {
-            // Skip anything not pressed, or that has already been processed
-            if (!matrix_key_pressed(row, col, false)) continue;
-
-            // If this key is transparent, use the base layer instead
-            key = keymap[layer_state.current][row][col];
-
-            if ((key & ENTRY_TYPE_MASK) == ENTRY_TYPE_TAPHOLD) {
-                // Create a new taphold node from the pool
-                ll_node_t* taphold_node = lla_alloc_tail(&tapholds.allocator);
-                if (taphold_node != NULL) {
-                    // Initialise the data
-                    taphold_data_t* taphold = (taphold_data_t*)taphold_node->data;
-                    taphold->hold_counter = 0;
-                    taphold->layer = layer_state.current;
-                    taphold->col = col;
-                    taphold->row = row;
-                }
-                matrix_mark_key_as_handled(row, col);
-            }
-        }
-    }
-}
-
 static void keyboard_handle_remaining_presses(void) {
     keymap_entry_t key = KC_NONE;
 
@@ -273,68 +229,6 @@ static void keyboard_handle_remaining_presses(void) {
             }
         }
     }
-}
-
-static void keyboard_update_active_tapholds(void) {
-    ll_node_t* current_node = tapholds.allocator.active_head;
-    taphold_data_t* current_taphold = NULL;
-    keymap_entry_t key = KC_NONE;
-
-    while (current_node != NULL) {
-        current_taphold = (taphold_data_t*)current_node->data;
-        key = keymap[current_taphold->layer][current_taphold->row][current_taphold->col];
-
-        // Update the timer
-        current_taphold->hold_counter += MATRIX_SCAN_INTERVAL_MS;
-        if (current_taphold->hold_counter > TAP_HOLD_DELAY_MS) {
-            current_taphold->hold_counter = TAP_HOLD_DELAY_MS;
-        }
-
-        // Is this key still being held? If the key was released or the layer changed, we need to stop tracking this taphold
-        bool is_pressed = matrix_key_pressed(current_taphold->row, current_taphold->col, false);
-        if (is_pressed) {
-            // Since we've dealt with the key here, don't process it in further steps
-            matrix_mark_key_as_handled(current_taphold->row, current_taphold->col);
-        }
-
-        // If the key was released before the hold delay timed out, we need to send the original key and cancel the taphold
-        if (!is_pressed || (current_taphold->layer != layer_state.current)) {
-            if (current_taphold->hold_counter < TAP_HOLD_DELAY_MS) {
-                keyboard_send_key(key);
-            }
-
-            ll_node_t* next_current = current_node->next;
-            lla_free(&tapholds.allocator, current_node);
-            current_node = next_current;
-
-            continue;
-        }
-
-        // If we got here, the key is still held. Check if it's active, and use it's modifiers if so
-        if (current_taphold->hold_counter >= TAP_HOLD_DELAY_MS) {
-            keyboard_hid_report_ref[0] |= ENTRY_ARG4(key);
-            keyboard_send_key(ENTRY_ARG8(key));
-        }
-
-        // On to the next
-        current_node = current_node->next;
-    }
-}
-
-static bool keyboard_taphold_should_ignore_other_keys(void) {
-    ll_node_t* current_node = tapholds.allocator.active_head;
-    taphold_data_t* current_taphold = NULL;
-
-    while (current_node != NULL) {
-        current_taphold = (taphold_data_t*)current_node->data;
-        if (current_taphold->hold_counter < TAP_HOLD_DELAY_MS) {
-            return true;
-        }
-        current_node = current_node->next;
-        continue;
-    }
-
-    return false;
 }
 
 static void keyboard_update_active_double_taps(void) {
@@ -569,14 +463,8 @@ void keyboard_init(uint8_t* keyboard_hid_report) {
     // Reset to the bootrom if the escape key is held during boot
     keyboard_bootmagic();
 
-    // Init the taphold state
-    lla_init(
-        &tapholds.allocator,
-        tapholds.data_array,
-        tapholds.node_array,
-        MAX_CONCURRENT_TAPHOLDS,
-        sizeof(taphold_data_t)
-    );
+    // Init tapholds
+    taphold_init();
 
     // Init the double tap state
     lla_init(
@@ -614,6 +502,10 @@ bool keyboard_send_key(keymap_entry_t key) {
     return true;
 }
 
+void keyboard_send_modifiers(uint8_t modifiers) {
+    keyboard_hid_report_ref[0] |= modifiers;
+}
+
 void keyboard_post_scan(void) {
     // Clear the report
     memset(keyboard_hid_report_ref, 0, 8);
@@ -630,13 +522,12 @@ void keyboard_post_scan(void) {
     // Process the keypresses in sequence, handling layer changes and more complex operations before simple presses
     keyboard_handle_layer_presses();
 
-    keyboard_update_active_tapholds();
-    keyboard_handle_taphold_presses();
+    bool ignore_from_taphold = taphold_update();
 
     keyboard_update_active_double_taps();
     keyboard_handle_double_tap_presses();
 
-    if (!(keyboard_taphold_should_ignore_other_keys() || keyboard_double_tap_should_ignore_other_keys())) {
+    if (!(ignore_from_taphold || keyboard_double_tap_should_ignore_other_keys())) {
         keyboard_handle_remaining_presses();
     }
 
