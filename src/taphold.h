@@ -18,7 +18,7 @@ typedef struct taphold_data_t {
     uint8_t row;
     uint8_t col;
     uint8_t layer;
-    uint8_t hold_counter;
+    uint16_t hold_counter;
 } taphold_data_t;
 
 typedef struct taphold_state_t {
