@@ -61,14 +61,12 @@
 typedef struct layer_state_t {
     uint8_t base;
     uint8_t current;
-    uint8_t operation;
 } layer_state_t;
 
 // statics
 static layer_state_t layer_state = {
     .base = LAYER_QWERTY,
     .current = LAYER_QWERTY,
-    .operation = LAYER_OPERATION_NONE
 };
 
 static uint8_t* keyboard_hid_report_ref = NULL;
@@ -124,32 +122,6 @@ static const keymap_entry_t keymap[NUM_LAYERS][MATRIX_ROWS][MATRIX_COLS] = {
 };
 
 // private functions
-static void keyboard_handle_layer_presses(void) {
-    keymap_entry_t key = KC_NONE;
-
-    for (uint row = 0; row < MATRIX_ROWS; row++) {
-        for (uint col = 0; col < MATRIX_COLS; col++) {
-            // Skip anything not pressed, or that has already been processed
-            if (!matrix_key_pressed(row, col, false)) continue;
-
-            key = keymap[layer_state.current][row][col];
-
-            if ((key & ENTRY_TYPE_MASK) == ENTRY_TYPE_LAYER) {
-                switch (key & ENTRY_ARG8_MASK) {
-                    case LAYER_COM_MO: {
-                        // A momentary layer switch is only active while the key is pressed, i.e. the state has to be re-evaluated every scan
-                        layer_state.operation = LAYER_OPERATION_MO;
-                        layer_state.current = key & KC_MASK;
-
-                        // Don't process this entry on further operations
-                        matrix_mark_key_as_handled(row, col);
-                    } break;
-                }
-            }
-        }
-    }
-}
-
 static void keyboard_handle_remaining_presses(void) {
     keymap_entry_t key = KC_NONE;
 
@@ -181,10 +153,31 @@ static void keyboard_handle_remaining_presses(void) {
 static void keyboard_on_key_release(uint row, uint col, keymap_entry_t key) {
     if ((key & ENTRY_TYPE_MASK) == ENTRY_TYPE_LAYER) {
         if ((key & ENTRY_ARG8_MASK) == LAYER_COM_MO) {
+            layer_state.current = layer_state.base;
+
             // If a momentary layer key is released, ignore active keypresses until they're released
             matrix_suppress_held_until_release();
         }
     }
+
+    taphold_on_key_release(row, col, key);
+}
+
+static void keyboard_on_key_press(uint row, uint col, keymap_entry_t key) {
+    // Handle layers
+    if ((key & ENTRY_TYPE_MASK) == ENTRY_TYPE_LAYER) {
+        if ((key & ENTRY_ARG8_MASK) == LAYER_COM_MO) {
+            // A momentary layer switch is only active while the key is pressed
+            layer_state.current = key & KC_MASK;
+
+            // Don't process this entry on further operations
+            matrix_mark_key_as_handled(row, col);
+
+            return;
+        }
+    }
+
+    taphold_on_key_press(row, col, key);
 }
 
 static void keyboard_bootmagic(void) {
@@ -263,11 +256,18 @@ void keyboard_post_scan(void) {
         }
     }
 
+    // Process the keys pressed
+    const uint32_t* pressed_bitmap = matrix_get_pressed_this_scan_bitmap();
+    for (uint row = 0; row < MATRIX_ROWS; row++) {
+        for (uint col = 0; col < MATRIX_COLS; col++) {
+            if (pressed_bitmap[row] & (1 << col)) {
+                keyboard_on_key_press(row, col, keyboard_resolve_key(row, col));
+            }
+        }
+    }
+
     // Handle combos before layer change operations to allow for the layer changing keys themselves to be used for combos
     combo_update();
-
-    // Process the keypresses in sequence, handling layer changes and more complex operations before simple presses
-    keyboard_handle_layer_presses();
 
     // Tapholds
     bool ignore_remaining_keypresses = taphold_update();
@@ -278,11 +278,6 @@ void keyboard_post_scan(void) {
     // Regular keypresses that haven't been suppressed by other functionalities
     if (!ignore_remaining_keypresses) {
         keyboard_handle_remaining_presses();
-    }
-
-    // Once all the keys are processed, we can check if we need to do something with the layer state
-    if (layer_state.operation == LAYER_OPERATION_MO) {
-        layer_state.current = layer_state.base;
     }
 }
 

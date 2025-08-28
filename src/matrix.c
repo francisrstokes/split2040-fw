@@ -137,6 +137,10 @@ const uint32_t* matrix_get_released_this_scan_bitmap(void) {
     return (const uint32_t*)released_this_scan_bitmap;
 }
 
+const uint32_t* matrix_get_pressed_this_scan_bitmap(void) {
+    return (const uint32_t*)pressed_this_scan_bitmap;
+}
+
 const uint matrix_get_col_gpio(uint col) {
     return matrix_cols[col];
 }

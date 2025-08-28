@@ -27,6 +27,7 @@ void matrix_mark_key_as_handled(uint32_t row, uint32_t col);
 void matrix_mark_key_as_unhandled(uint32_t row, uint32_t col);
 const uint32_t* matrix_get_pressed_bitmap(void);
 const uint32_t* matrix_get_handled_bitmap(void);
+const uint32_t* matrix_get_pressed_this_scan_bitmap(void);
 const uint32_t* matrix_get_released_this_scan_bitmap(void);
 const uint matrix_get_col_gpio(uint col);
 const uint matrix_get_row_gpio(uint row);
