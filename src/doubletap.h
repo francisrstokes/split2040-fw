@@ -8,7 +8,7 @@
 
 #include "pico/types.h"
 #include "ll_alloc.h"
-
+#include "keyboard.h"
 
 // defines
 #define DOUBLE_TAP_DELAY_MS         (200)
@@ -39,3 +39,5 @@ typedef struct double_tap_state_t {
 // public functions
 void double_tap_init(void);
 bool double_tap_update(void);
+bool double_tap_on_key_release(uint row, uint col, keymap_entry_t key);
+bool double_tap_on_key_press(uint row, uint col, keymap_entry_t key);

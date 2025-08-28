@@ -164,4 +164,5 @@ bool keyboard_send_key(keymap_entry_t key);
 void keyboard_send_modifiers(uint8_t modifiers);
 void keyboard_post_scan(void);
 keymap_entry_t keyboard_resolve_key(uint row, uint col);
+keymap_entry_t keyboard_resolve_key_on_layer(uint row, uint col, uint layer);
 uint8_t keyboard_get_current_layer(void);

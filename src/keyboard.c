@@ -24,6 +24,7 @@
 #define LAYER_LOWER             (1)
 #define LAYER_RAISE             (2)
 #define LAYER_FN                (3)
+#define LAYER_MAX               (4)
 
 #define LAYER_OPERATION_NONE    (0)
 #define LAYER_OPERATION_MO      (1)
@@ -160,7 +161,8 @@ static void keyboard_on_key_release(uint row, uint col, keymap_entry_t key) {
         }
     }
 
-    taphold_on_key_release(row, col, key);
+    if (taphold_on_key_release(row, col, key)) return;
+    if (double_tap_on_key_release(row, col, key)) return;
 }
 
 static void keyboard_on_key_press(uint row, uint col, keymap_entry_t key) {
@@ -177,7 +179,8 @@ static void keyboard_on_key_press(uint row, uint col, keymap_entry_t key) {
         }
     }
 
-    taphold_on_key_press(row, col, key);
+    if (taphold_on_key_press(row, col, key)) return;
+    if (double_tap_on_key_press(row, col, key)) return;
 }
 
 static void keyboard_bootmagic(void) {
@@ -291,6 +294,18 @@ keymap_entry_t keyboard_resolve_key(uint row, uint col) {
 
     return key;
 }
+
+keymap_entry_t keyboard_resolve_key_on_layer(uint row, uint col, uint layer) {
+    if (row >= MATRIX_ROWS || col >= MATRIX_COLS || layer >= LAYER_MAX) return KC_NONE;
+
+    keymap_entry_t key = keymap[layer][row][col];
+    if (key == KC_TRANS) {
+        key = keymap[layer_state.base][row][col];
+    }
+
+    return key;
+}
+
 
 uint8_t keyboard_get_current_layer(void) {
     return layer_state.current;
