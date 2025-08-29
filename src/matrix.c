@@ -11,6 +11,9 @@
 
 #include "pico/stdlib.h"
 
+// Define
+#define MATRIX_SETTLE_ITERATIONS (25)
+
 // statics
 static uint32_t prev_pressed_bitmap[MATRIX_ROWS] = {0};
 static uint32_t pressed_bitmap[MATRIX_ROWS] = {0};
@@ -19,9 +22,15 @@ static uint32_t pressed_this_scan_bitmap[MATRIX_ROWS] = {0};
 static uint32_t released_this_scan_bitmap[MATRIX_ROWS] = {0};
 static uint32_t suppressed_until_release[MATRIX_ROWS] = {0};
 
-// private functions
 static uint matrix_cols[MATRIX_COLS] = { 5, 4, 3, 2, 1, 0, 20, 21, 22, 26, 27, 28 };
 static uint matrix_rows[MATRIX_ROWS] = { 19, 18, 17, 16 };
+
+// private functions
+static inline void matrix_settle_delay(void) {
+    for (uint i = 0; i < MATRIX_SETTLE_ITERATIONS; i++) {
+        asm volatile("nop\n");
+    }
+}
 
 // public functions
 void matrix_init(void) {
@@ -54,6 +63,7 @@ void matrix_scan(void) {
     for (uint col = 0; col < MATRIX_COLS; col++) {
         // Assert the column
         gpio_put(matrix_cols[col], true);
+        matrix_settle_delay();
 
         // Scan the rows
         for (uint row = 0; row < MATRIX_ROWS; row++) {
@@ -64,11 +74,7 @@ void matrix_scan(void) {
 
         // Deassert the column
         gpio_put(matrix_cols[col], false);
-
-        // Wait some time to avoid asserting multiple columns at the same time
-        for (uint i = 0; i < 25; i++) {
-            asm volatile("nop\n");
-        }
+        matrix_settle_delay();
     }
 
     // Compute the deltas
