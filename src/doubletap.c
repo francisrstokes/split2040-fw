@@ -74,7 +74,7 @@ bool double_tap_update(void) {
         }
 
         if (current_dt->state == dt_state_single_tap) {
-            keyboard_send_key(key);
+            keyboard_send_key(key & 0xfff);
         }
 
         if (current_dt->state == dt_state_double_tap) {

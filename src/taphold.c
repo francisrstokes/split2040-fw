@@ -64,8 +64,7 @@ bool taphold_update(void) {
         current_taphold->hold_counter += MATRIX_SCAN_INTERVAL_MS;
         if (current_taphold->hold_counter > computed_hold_time) {
             current_taphold->hold_counter = computed_hold_time;
-            keyboard_send_modifiers(ENTRY_ARG4(key));
-            keyboard_send_key(ENTRY_ARG8(key));
+            keyboard_send_key(ENTRY_ARG8(key) | (ENTRY_ARG4(key) << 8));
         } else {
             there_are_active_undetermined_tapholds = true;
         }
@@ -97,8 +96,8 @@ bool taphold_on_key_release(uint row, uint col, keymap_entry_t key) {
 
             // Is it still within the tapping period?
             if (current_taphold->hold_counter < computed_hold_time) {
-                // Ist was, send the key
-                keyboard_send_key(tap_key);
+                // It was, send the key data
+                keyboard_send_key(tap_key & 0xfff);
             }
 
             // Either way, the key is released, so we can free this node

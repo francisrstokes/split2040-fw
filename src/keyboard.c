@@ -83,7 +83,7 @@ static combo_t combos[NUM_COMBO_SLOTS] = {
     [6]  = COMBO2(KC_W,         KC_E,           KC_TAB),         // Tab
     [7]  = COMBO2(KC_I,         KC_O,           KC_TAB),         // Tab
     [8]  = COMBO2(KC_Q,         KC_W,           KC_CAPS),        // Caps Lock
-    [9]  = COMBO_UNUSED,
+    [9]  = COMBO2(LOWER,        RAISE,          FN),             // FN layer
     [10] = COMBO_UNUSED,
     [11] = COMBO_UNUSED,
     [12] = COMBO_UNUSED,
@@ -117,7 +117,7 @@ static const keymap_entry_t keymap[NUM_LAYERS][MATRIX_ROWS][MATRIX_COLS] = {
     [LAYER_FN] = {
         {____,      ____,       ____,       ____,           ____,           ____,       /* split */     ____,       ____,           ____,       ____,       ____,           ____},
         {____,      ____,       ____,       ____,           ____,           ____,       /* split */     ____,       ____,           ____,       ____,       ____,           ____},
-        {____,      ____,       ____,       ____,           ____,           ____,       /* split */     ____,       ____,           ____,       ____,       ____,           ____},
+        {____,      ____,       ____,       ____,           ____,           KC_X,       /* split */     ____,       ____,           ____,       ____,       ____,           ____},
         {____,      ____,       ____,       ____,           ____,           ____,       /* split */     ____,       ____,           ____,       ____,       ____,           ____}
     }
 };
@@ -132,12 +132,7 @@ static void keyboard_handle_remaining_presses(void) {
             // Skip anything not pressed, or that has already been processed
             if (!matrix_key_pressed(row, col, false)) continue;
 
-            // If this key is transparent, use the base layer instead
-            key = keymap[layer_state.current][row][col];
-            if (key == KC_TRANS) {
-                key = keymap[layer_state.base][row][col];
-            }
-
+            key = keyboard_resolve_key(row, col);
             switch (key & ENTRY_TYPE_MASK) {
                 case ENTRY_TYPE_KC: {
                     keyboard_send_key(key);
@@ -189,6 +184,17 @@ static void keyboard_on_key_press(uint row, uint col, keymap_entry_t key) {
     if (double_tap_on_key_press(row, col, key)) return;
 }
 
+static void keyboard_handle_virtual_key(keymap_entry_t key) {
+    if ((key & ENTRY_TYPE_MASK) == ENTRY_TYPE_LAYER) {
+        if ((key & ENTRY_ARG8_MASK) == LAYER_COM_MO) {
+            // A momentary layer switch is only active while the key is pressed
+            layer_state.current = key & KC_MASK;
+
+            return;
+        }
+    }
+}
+
 static void keyboard_bootmagic(void) {
     gpio_put(matrix_get_col_gpio(BOOTMAGIC_COL), true);
     sleep_ms(1);
@@ -216,6 +222,11 @@ void keyboard_init(uint8_t* keyboard_hid_report) {
 }
 
 bool keyboard_send_key(keymap_entry_t key) {
+    if ((key & ENTRY_TYPE_MASK) != ENTRY_TYPE_KC) {
+        keyboard_handle_virtual_key(key);
+        return true;
+    }
+
     if (report_press_count >= 6) return false;
 
     uint8_t kc_value = key & KC_MASK;
