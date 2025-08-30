@@ -25,7 +25,8 @@ typedef enum combo_state_t {
     combo_state_invalid = 0,
     combo_state_inactive,
     combo_state_active,
-    combo_state_cancelled
+    combo_state_cooldown,
+    combo_state_wait_for_all_released,
 } combo_state_t;
 
 typedef struct combo_t {
@@ -46,4 +47,6 @@ typedef struct combo_t {
 
 // public functions
 void combo_init(combo_t* combo_table);
-void combo_update(void);
+bool combo_update(void);
+bool combo_on_key_press(uint row, uint col, keymap_entry_t key);
+bool combo_on_key_release(uint row, uint col, keymap_entry_t key);

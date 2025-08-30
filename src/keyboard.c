@@ -152,6 +152,8 @@ static void keyboard_handle_remaining_presses(void) {
 }
 
 static void keyboard_on_key_release(uint row, uint col, keymap_entry_t key) {
+    if (combo_on_key_release(row, col, key)) return;
+
     if ((key & ENTRY_TYPE_MASK) == ENTRY_TYPE_LAYER) {
         if ((key & ENTRY_ARG8_MASK) == LAYER_COM_MO) {
             layer_state.current = layer_state.base;
@@ -166,6 +168,10 @@ static void keyboard_on_key_release(uint row, uint col, keymap_entry_t key) {
 }
 
 static void keyboard_on_key_press(uint row, uint col, keymap_entry_t key) {
+    if (!tapholds_any_active()) {
+        if (combo_on_key_press(row, col, key)) return;
+    }
+
     // Handle layers
     if ((key & ENTRY_TYPE_MASK) == ENTRY_TYPE_LAYER) {
         if ((key & ENTRY_ARG8_MASK) == LAYER_COM_MO) {
@@ -247,6 +253,7 @@ void keyboard_post_scan(void) {
     // Quick and dirty reset to bootloader, should move this to a proper key handler
     if (matrix_key_pressed(0, 0, true) && matrix_key_pressed(1, 1, true) && matrix_key_pressed(2, 2, true)) {
         reset_usb_boot(0, 0);
+        return;
     }
 
     // Before processing the keypresses, handle any released keys
@@ -270,10 +277,10 @@ void keyboard_post_scan(void) {
     }
 
     // Handle combos before layer change operations to allow for the layer changing keys themselves to be used for combos
-    combo_update();
+    bool ignore_remaining_keypresses = combo_update();
 
     // Tapholds
-    bool ignore_remaining_keypresses = taphold_update();
+    ignore_remaining_keypresses = taphold_update() || ignore_remaining_keypresses;
 
     // Double taps
     ignore_remaining_keypresses = double_tap_update() || ignore_remaining_keypresses;

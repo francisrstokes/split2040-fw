@@ -132,3 +132,7 @@ bool taphold_on_key_press(uint row, uint col, keymap_entry_t key) {
     }
     return false;
 }
+
+bool tapholds_any_active(void) {
+    return (tapholds.allocator.active_head != NULL);
+}

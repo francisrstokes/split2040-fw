@@ -33,3 +33,4 @@ void taphold_init(void);
 bool taphold_on_key_release(uint row, uint col, keymap_entry_t key);
 bool taphold_on_key_press(uint row, uint col, keymap_entry_t key);
 bool taphold_update(void);
+bool tapholds_any_active(void);
