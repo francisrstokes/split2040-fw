@@ -27,6 +27,7 @@ typedef enum combo_state_t {
     combo_state_active,
     combo_state_cooldown,
     combo_state_wait_for_all_released,
+    combo_state_single_held,
 } combo_state_t;
 
 typedef struct combo_t {
@@ -36,6 +37,7 @@ typedef struct combo_t {
     keymap_entry_t keys[MAX_KEYS_PER_COMBO];
     rowcol_t key_positions[MAX_KEYS_PER_COMBO];
     keymap_entry_t key_out;
+    uint8_t held_index;
 } combo_t;
 
 // helper macros for defining combos

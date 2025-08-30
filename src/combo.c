@@ -171,6 +171,8 @@ bool combo_on_key_release(uint row, uint col, keymap_entry_t key) {
             if (combos[combo_index].keys_pressed_bitmask == 0) {
                 combos[combo_index].state = combo_state_inactive;
             }
+        } else if (combos[combo_index].state == combo_state_single_held) {
+            combos[combo_index].state = combo_state_inactive;
         } else {
             if (combos[combo_index].state == combo_state_active) {
                 // When only a single key was pressed, we can emit the key immediately
@@ -231,11 +233,14 @@ bool combo_update(void) {
                     combos[combo_index].time_since_first_press = 0;
                     combo_mark_keys_as_handled(combo_index);
                 } else {
-                    // It was a single, emit it!
+                    // It was a single key, and is still held
                     keyboard_send_key(combos[combo_index].keys[single_key_index]);
-                    combos[combo_index].state = combo_state_wait_for_all_released;
+                    combos[combo_index].state = combo_state_single_held;
+                    combos[combo_index].held_index = single_key_index;
                 }
             }
+        } else if (combos[combo_index].state == combo_state_single_held) {
+            keyboard_send_key(combos[combo_index].keys[combos[combo_index].held_index]);
         }
     }
 
