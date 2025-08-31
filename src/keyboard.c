@@ -81,7 +81,7 @@ static const keymap_entry_t keymap[NUM_LAYERS][MATRIX_ROWS][MATRIX_COLS] = {
 
     [LAYER_LOWER] = {
         {KC_F1,    KC_F2,      KC_F3,      KC_F4,           KC_F5,          KC_F6,       /* split */     KC_F7,     KC_F8,          KC_F9,      KC_F10,     KC_F11,         KC_F12},
-        {____,     LG_T(KC_1), LA_T(KC_2), LS_T(KC_3),      LC_T(KC_4),     KC_5,        /* split */     KC_6,      LC_T(KC_7),     LS_T(KC_8), LA_T(KC_9), LG_T(KC_0),     KC_MINUS},
+        {KC_PTSC,  LG_T(KC_1), LA_T(KC_2), LS_T(KC_3),      LC_T(KC_4),     KC_5,        /* split */     KC_6,      LC_T(KC_7),     LS_T(KC_8), LA_T(KC_9), LG_T(KC_0),     KC_MINUS},
         {____,     C_LEFT,     C_DOWN,     C_UP,            C_RIGHT,        ____,        /* split */     ____,      KC_LEFT,        KC_DOWN,    KC_UP,      KC_RIGHT,       ____},
         {____,     ____,       ____,       ____,            ____,           ____,        /* split */     ____,       ____,          ____,       ____,       ____,           ____}
     },
@@ -94,9 +94,9 @@ static const keymap_entry_t keymap[NUM_LAYERS][MATRIX_ROWS][MATRIX_COLS] = {
     },
 
     [LAYER_FN] = {
+        {____,      KC_POWER,   ____,       ____,           ____,           ____,       /* split */     ____,       ____,           KC_BGT_DN,  KC_BGT_UP,  ____,           ____},
+        {____,      ____,       ____,       ____,           ____,           ____,       /* split */     ____,       ____,           KC_VOL_DN,  KC_VOL_UP,  KC_MUTE,        ____},
         {____,      ____,       ____,       ____,           ____,           ____,       /* split */     ____,       ____,           ____,       ____,       ____,           ____},
-        {____,      ____,       ____,       ____,           ____,           ____,       /* split */     ____,       ____,           ____,       ____,       ____,           ____},
-        {____,      ____,       ____,       ____,           ____,           KC_X,       /* split */     ____,       ____,           ____,       ____,       ____,           ____},
         {____,      ____,       ____,       ____,           ____,           ____,       /* split */     ____,       ____,           ____,       ____,       ____,           ____}
     }
 };

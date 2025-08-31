@@ -158,6 +158,14 @@ typedef uint32_t keymap_entry_t;
 #define KC_DOWN     KEY(HID_KEY_ARROW_DOWN)
 #define KC_UP       KEY(HID_KEY_ARROW_UP)
 
+#define KC_PTSC     KEY(HID_KEY_PRINT_SCREEN)
+#define KC_POWER    KEY(HID_KEY_POWER)
+#define KC_MUTE     KEY(HID_KEY_MUTE)
+#define KC_VOL_UP   KEY(HID_KEY_VOLUME_UP)
+#define KC_VOL_DN   KEY(HID_KEY_VOLUME_DOWN)
+#define KC_BGT_UP   KC_F8
+#define KC_BGT_DN   KC_F7
+
 // public functions
 void keyboard_init(uint8_t* keyboard_hid_report);
 bool keyboard_send_key(keymap_entry_t key);
