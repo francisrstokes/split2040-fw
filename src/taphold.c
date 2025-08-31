@@ -133,5 +133,18 @@ bool taphold_on_key_press(uint row, uint col, keymap_entry_t key) {
 }
 
 bool tapholds_any_active(void) {
-    return (tapholds.allocator.active_head != NULL);
+    ll_node_t* current_node = tapholds.allocator.active_head;
+    taphold_data_t* current_taphold = NULL;
+    keymap_entry_t tap_key = KC_NONE;
+
+    while (current_node != NULL) {
+        current_taphold = (taphold_data_t*)current_node->data;
+        tap_key = keyboard_resolve_key(current_taphold->row, current_taphold->col);
+        if (current_taphold->hold_counter < (TAP_HOLD_DELAY_MS + taphold_get_time_offset_for_key(tap_key))) {
+            return true;
+        }
+        current_node = current_node->next;
+    }
+
+    return false;
 }
