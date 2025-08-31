@@ -8,6 +8,7 @@
 #include "taphold.h"
 #include "doubletap.h"
 #include "combo.h"
+#include "layers.h"
 #include "matrix.h"
 
 #include <string.h>
@@ -16,21 +17,10 @@
 #include "pico/bootrom.h"
 
 // options/configuration
-#define BOOTMAGIC_COL               (0)
-#define BOOTMAGIC_ROW               (0)
+#define BOOTMAGIC_COL           (0)
+#define BOOTMAGIC_ROW           (0)
 
 // regular defines
-#define LAYER_QWERTY            (0)
-#define LAYER_LOWER             (1)
-#define LAYER_RAISE             (2)
-#define LAYER_FN                (3)
-#define LAYER_MAX               (4)
-
-#define LAYER_OPERATION_NONE    (0)
-#define LAYER_OPERATION_MO      (1)
-
-#define PRESS_PROCESSED         (0xff)
-
 #define ____                    KC_TRANS
 
 #define LOWER                   MO(LAYER_LOWER)
@@ -58,18 +48,7 @@
 
 #define SPC_ENT                 DT(KC_SPC, KC_ENTER, 0x0)
 
-// typedefs
-typedef struct layer_state_t {
-    uint8_t base;
-    uint8_t current;
-} layer_state_t;
-
 // statics
-static layer_state_t layer_state = {
-    .base = LAYER_QWERTY,
-    .current = LAYER_QWERTY,
-};
-
 static uint8_t* keyboard_hid_report_ref = NULL;
 static uint8_t report_press_count = 0;
 
@@ -148,16 +127,7 @@ static void keyboard_handle_remaining_presses(void) {
 
 static void keyboard_on_key_release(uint row, uint col, keymap_entry_t key) {
     if (combo_on_key_release(row, col, key)) return;
-
-    if ((key & ENTRY_TYPE_MASK) == ENTRY_TYPE_LAYER) {
-        if ((key & ENTRY_ARG8_MASK) == LAYER_COM_MO) {
-            layer_state.current = layer_state.base;
-
-            // If a momentary layer key is released, ignore active keypresses until they're released
-            matrix_suppress_held_until_release();
-        }
-    }
-
+    if (layers_on_key_release(row, col, key)) return;
     if (taphold_on_key_release(row, col, key)) return;
     if (double_tap_on_key_release(row, col, key)) return;
 }
@@ -167,32 +137,13 @@ static void keyboard_on_key_press(uint row, uint col, keymap_entry_t key) {
         if (combo_on_key_press(row, col, key)) return;
     }
 
-    // Handle layers
-    if ((key & ENTRY_TYPE_MASK) == ENTRY_TYPE_LAYER) {
-        if ((key & ENTRY_ARG8_MASK) == LAYER_COM_MO) {
-            // A momentary layer switch is only active while the key is pressed
-            layer_state.current = key & KC_MASK;
-
-            // Don't process this entry on further operations
-            matrix_mark_key_as_handled(row, col);
-
-            return;
-        }
-    }
-
+    if (layers_on_key_press(row, col, key)) return;
     if (taphold_on_key_press(row, col, key)) return;
     if (double_tap_on_key_press(row, col, key)) return;
 }
 
 static void keyboard_handle_virtual_key(keymap_entry_t key) {
-    if ((key & ENTRY_TYPE_MASK) == ENTRY_TYPE_LAYER) {
-        if ((key & ENTRY_ARG8_MASK) == LAYER_COM_MO) {
-            // A momentary layer switch is only active while the key is pressed
-            layer_state.current = key & KC_MASK;
-
-            return;
-        }
-    }
+    if (layers_on_virtual_key(key)) return;
 }
 
 static void keyboard_bootmagic(void) {
@@ -305,9 +256,9 @@ void keyboard_post_scan(void) {
 keymap_entry_t keyboard_resolve_key(uint row, uint col) {
     if (row >= MATRIX_ROWS || col >= MATRIX_COLS) return KC_NONE;
 
-    keymap_entry_t key = keymap[layer_state.current][row][col];
+    keymap_entry_t key = keymap[layers_get_current()][row][col];
     if (key == KC_TRANS) {
-        key = keymap[layer_state.base][row][col];
+        key = keymap[layers_get_base()][row][col];
     }
 
     return key;
@@ -318,7 +269,7 @@ keymap_entry_t keyboard_resolve_key_on_layer(uint row, uint col, uint layer) {
 
     keymap_entry_t key = keymap[layer][row][col];
     if (key == KC_TRANS) {
-        key = keymap[layer_state.base][row][col];
+        key = keymap[layers_get_base()][row][col];
     }
 
     return key;
@@ -326,5 +277,5 @@ keymap_entry_t keyboard_resolve_key_on_layer(uint row, uint col, uint layer) {
 
 
 uint8_t keyboard_get_current_layer(void) {
-    return layer_state.current;
+    return layers_get_current();
 }
