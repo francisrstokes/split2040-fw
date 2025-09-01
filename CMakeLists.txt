@@ -19,7 +19,12 @@ add_executable(usb_keyboard
         src/layers.c
         src/macro.c
         src/ll_alloc.c
+        src/ws2812.c
         )
 
-target_link_libraries(usb_keyboard PRIVATE pico_stdlib hardware_resets hardware_irq)
+target_link_libraries(usb_keyboard PRIVATE pico_stdlib hardware_resets hardware_irq hardware_pio)
+
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/generated)
+pico_generate_pio_header(usb_keyboard ${CMAKE_CURRENT_LIST_DIR}/src/ws2812.pio OUTPUT_DIR generated)
+
 pico_add_extra_outputs(usb_keyboard)

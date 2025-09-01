@@ -1,6 +1,7 @@
 #include "layers.h"
 #include "keyboard.h"
 #include "matrix.h"
+#include "ws2812.h"
 
 // statics
 static layer_state_t layer_state = {
@@ -8,12 +9,25 @@ static layer_state_t layer_state = {
     .current = LAYER_QWERTY,
 };
 
+static const uint8_t layer_colors[NUM_LAYERS][3] = {
+    {WHITE},
+    {CYAN},
+    {ORANGE},
+    {MAGENTA}
+};
+
+// private functions
+static void layers_set(uint8_t layer) {
+    layer_state.current = layer;
+    ws2812_set_color(0, layer_colors[layer][0], layer_colors[layer][1], layer_colors[layer][2]);
+}
+
 // public functions
 bool layers_on_key_press(uint row, uint col, keymap_entry_t key) {
     if ((key & ENTRY_TYPE_MASK) == ENTRY_TYPE_LAYER) {
         if ((key & ENTRY_ARG8_MASK) == LAYER_COM_MO) {
             // A momentary layer switch is only active while the key is pressed
-            layer_state.current = key & KC_MASK;
+            layers_set(key & KC_MASK);
 
             // Don't process this entry on further operations
             matrix_mark_key_as_handled(row, col);
@@ -27,7 +41,7 @@ bool layers_on_key_press(uint row, uint col, keymap_entry_t key) {
 bool layers_on_key_release(uint row, uint col, keymap_entry_t key) {
     if ((key & ENTRY_TYPE_MASK) == ENTRY_TYPE_LAYER) {
         if ((key & ENTRY_ARG8_MASK) == LAYER_COM_MO) {
-            layer_state.current = layer_state.base;
+            layers_set(layer_state.base);
 
             // If a momentary layer key is released, ignore active keypresses until they're released
             matrix_suppress_held_until_release();
@@ -41,9 +55,7 @@ bool layers_on_key_release(uint row, uint col, keymap_entry_t key) {
 bool layers_on_virtual_key(keymap_entry_t key) {
     if ((key & ENTRY_TYPE_MASK) == ENTRY_TYPE_LAYER) {
         if ((key & ENTRY_ARG8_MASK) == LAYER_COM_MO) {
-            // A momentary layer switch is only active while the key is pressed
-            layer_state.current = key & KC_MASK;
-
+            layers_set(key & KC_MASK);
             return true;
         }
     }
