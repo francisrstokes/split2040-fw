@@ -4,11 +4,13 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+
 #include "keyboard.h"
 #include "taphold.h"
 #include "doubletap.h"
 #include "combo.h"
 #include "layers.h"
+#include "macro.h"
 #include "matrix.h"
 
 #include <string.h>
@@ -48,6 +50,8 @@
 
 #define SPC_ENT                 DT(KC_SPC, KC_ENTER, 0x0)
 
+#define M_DEREF                 MACRO(0)
+
 // statics
 static uint8_t* keyboard_hid_report_ref = NULL;
 static uint8_t report_press_count = 0;
@@ -63,12 +67,25 @@ static combo_t combos[NUM_COMBO_SLOTS] = {
     [7]  = COMBO2(KC_I,         KC_O,           KC_TAB),         // Tab
     [8]  = COMBO2(KC_Q,         KC_W,           KC_CAPS),        // Caps Lock
     [9]  = COMBO2(LOWER,        RAISE,          FN),             // FN layer
-    [10] = COMBO_UNUSED,
+    [10] = COMBO2(KC_P,         KC_BSPC,        M_DEREF),        // "->"
     [11] = COMBO_UNUSED,
     [12] = COMBO_UNUSED,
     [13] = COMBO_UNUSED,
     [14] = COMBO_UNUSED,
     [15] = COMBO_UNUSED,
+};
+
+const char arrow_deref[] = "->";
+
+static macro_t macros[NUM_MACRO_SLOTS] = {
+    [0] = SEND_STRING(arrow_deref, sizeof(arrow_deref)),
+    [1] = MACRO_UNUSED,
+    [2] = MACRO_UNUSED,
+    [3] = MACRO_UNUSED,
+    [4] = MACRO_UNUSED,
+    [5] = MACRO_UNUSED,
+    [6] = MACRO_UNUSED,
+    [7] = MACRO_UNUSED
 };
 
 static const keymap_entry_t keymap[NUM_LAYERS][MATRIX_ROWS][MATRIX_COLS] = {
@@ -82,7 +99,7 @@ static const keymap_entry_t keymap[NUM_LAYERS][MATRIX_ROWS][MATRIX_COLS] = {
     [LAYER_LOWER] = {
         {KC_F1,    KC_F2,      KC_F3,      KC_F4,           KC_F5,          KC_F6,       /* split */     KC_F7,     KC_F8,          KC_F9,      KC_F10,     KC_F11,         KC_F12},
         {KC_PTSC,  LG_T(KC_1), LA_T(KC_2), LS_T(KC_3),      LC_T(KC_4),     KC_5,        /* split */     KC_6,      LC_T(KC_7),     LS_T(KC_8), LA_T(KC_9), LG_T(KC_0),     KC_MINUS},
-        {____,     C_LEFT,     C_DOWN,     C_UP,            C_RIGHT,        ____,        /* split */     ____,      KC_LEFT,        KC_DOWN,    KC_UP,      KC_RIGHT,       ____},
+        {____,     C_LEFT,     C_DOWN,     C_UP,            C_RIGHT,        ____,        /* split */     ____,      KC_LEFT,        KC_DOWN,    KC_UP,      KC_RIGHT,       M_DEREF},
         {____,     ____,       ____,       ____,            ____,           ____,        /* split */     ____,       ____,          ____,       ____,       ____,           ____}
     },
 
@@ -126,6 +143,7 @@ static void keyboard_handle_remaining_presses(void) {
 }
 
 static void keyboard_on_key_release(uint row, uint col, keymap_entry_t key) {
+    if (macro_on_key_release(row, col, key)) return;
     if (combo_on_key_release(row, col, key)) return;
     if (layers_on_key_release(row, col, key)) return;
     if (taphold_on_key_release(row, col, key)) return;
@@ -133,6 +151,8 @@ static void keyboard_on_key_release(uint row, uint col, keymap_entry_t key) {
 }
 
 static void keyboard_on_key_press(uint row, uint col, keymap_entry_t key) {
+    if (macro_on_key_press(row, col, key)) return;
+
     if (!tapholds_any_active()) {
         if (combo_on_key_press(row, col, key)) return;
     }
@@ -143,6 +163,7 @@ static void keyboard_on_key_press(uint row, uint col, keymap_entry_t key) {
 }
 
 static void keyboard_handle_virtual_key(keymap_entry_t key) {
+    if (macro_on_virtual_key(key)) return;
     if (layers_on_virtual_key(key)) return;
 }
 
@@ -170,6 +191,9 @@ void keyboard_init(uint8_t* keyboard_hid_report) {
 
     // Init combos
     combo_init(combos);
+
+    // Init macros
+    macro_init(macros);
 }
 
 bool keyboard_send_key(keymap_entry_t key) {
@@ -207,9 +231,13 @@ void keyboard_send_modifiers(uint8_t modifiers) {
     keyboard_hid_report_ref[0] |= modifiers;
 }
 
+void keyboard_clear_sent_keys(void) {
+    memset(keyboard_hid_report_ref, 0, 8);
+}
+
 void keyboard_post_scan(void) {
     // Clear the report
-    memset(keyboard_hid_report_ref, 0, 8);
+    keyboard_clear_sent_keys();
     report_press_count = 0;
 
     // Quick and dirty reset to bootloader, should move this to a proper key handler
@@ -238,18 +266,20 @@ void keyboard_post_scan(void) {
         }
     }
 
-    // Handle combos before layer change operations to allow for the layer changing keys themselves to be used for combos
-    bool ignore_remaining_keypresses = combo_update();
+    if (!macro_update()) {
+        // Handle combos before layer change operations to allow for the layer changing keys themselves to be used for combos
+        bool ignore_remaining_keypresses = combo_update();
 
-    // Tapholds
-    ignore_remaining_keypresses = taphold_update() || ignore_remaining_keypresses;
+        // Tapholds
+        ignore_remaining_keypresses = taphold_update() || ignore_remaining_keypresses;
 
-    // Double taps
-    ignore_remaining_keypresses = double_tap_update() || ignore_remaining_keypresses;
+        // Double taps
+        ignore_remaining_keypresses = double_tap_update() || ignore_remaining_keypresses;
 
-    // Regular keypresses that haven't been suppressed by other functionalities
-    if (!ignore_remaining_keypresses) {
-        keyboard_handle_remaining_presses();
+        // Regular keypresses that haven't been suppressed by other functionalities
+        if (!ignore_remaining_keypresses) {
+            keyboard_handle_remaining_presses();
+        }
     }
 }
 

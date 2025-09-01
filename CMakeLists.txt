@@ -17,6 +17,7 @@ add_executable(usb_keyboard
         src/doubletap.c
         src/combo.c
         src/layers.c
+        src/macro.c
         src/ll_alloc.c
         )
 

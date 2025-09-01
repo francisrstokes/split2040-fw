@@ -37,6 +37,7 @@ typedef uint32_t keymap_entry_t;
 #define ENTRY_TYPE_LAYER        (0x10000000)
 #define ENTRY_TYPE_TAPHOLD      (0x20000000)
 #define ENTRY_TYPE_DOUBLE_TAP   (0x30000000)
+#define ENTRY_TYPE_MACRO        (0x40000000)
 
 #define KC_MASK             (0x000000ff)
 #define KEY_MODS_MASK       (0x0000ff00)
@@ -67,6 +68,9 @@ typedef uint32_t keymap_entry_t;
 
 #define DOUBLE_TAP(tkc, dkc, dmods) (ENTRY_TYPE_DOUBLE_TAP | (dkc << ENTRY_ARG8_SHIFT) | ((dmods) << ENTRY_ARG4_SHIFT) | (tkc))
 #define DT(tkc, dkc, dmods)         DOUBLE_TAP(tkc, dkc, dmods)
+
+#define MACRO(index)                (ENTRY_TYPE_MACRO | index)
+#define MACRO_INDEX_MASK            (0xffff)
 
 // key definitions
 #define KC_NONE     KEY(HID_KEY_NONE)
@@ -170,6 +174,7 @@ typedef uint32_t keymap_entry_t;
 void keyboard_init(uint8_t* keyboard_hid_report);
 bool keyboard_send_key(keymap_entry_t key);
 void keyboard_send_modifiers(uint8_t modifiers);
+void keyboard_clear_sent_keys(void);
 void keyboard_post_scan(void);
 keymap_entry_t keyboard_resolve_key(uint row, uint col);
 keymap_entry_t keyboard_resolve_key_on_layer(uint row, uint col, uint layer);
