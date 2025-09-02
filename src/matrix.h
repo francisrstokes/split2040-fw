@@ -22,6 +22,7 @@ bool matrix_key_pressed_this_scan(uint32_t row, uint32_t col);
 bool matrix_key_released_this_scan(uint32_t row, uint32_t col);
 
 void matrix_suppress_held_until_release(void);
+void matrix_suppress_key_until_release(uint32_t row, uint32_t col);
 
 void matrix_mark_key_as_handled(uint32_t row, uint32_t col);
 void matrix_mark_key_as_unhandled(uint32_t row, uint32_t col);

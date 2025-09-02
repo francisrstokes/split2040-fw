@@ -55,6 +55,14 @@
 
 #define M_DEREF                 MACRO(0)
 
+#define BL_RST                  KBC_RESET_TO_BL
+#define TOG_L0                  KBC_LED0_TOGGLE
+#define TOG_L1                  KBC_LED1_TOGGLE
+#define TOG_L2                  KBC_LED2_TOGGLE
+#define TOG_L3                  KBC_LED3_TOGGLE
+#define L_B_UP                  KBC_BRIGHTNESS_UP
+#define L_B_DN                  KBC_BRIGHTNESS_DOWN
+
 #define LED1_R(mods)             ((mods & (LA_BIT | RA_BIT)) ? 255 : 0)
 #define LED1_G(mods)             ((mods & (LS_BIT | RS_BIT)) ? 255 : 0)
 #define LED1_B(mods)             ((mods & (LC_BIT | RC_BIT)) ? 255 : 0)
@@ -119,14 +127,38 @@ static const keymap_entry_t keymap[NUM_LAYERS][MATRIX_ROWS][MATRIX_COLS] = {
     },
 
     [LAYER_FN] = {
-        {____,      KC_POWER,   ____,       ____,           ____,           ____,       /* split */     ____,       ____,           KC_BGT_DN,  KC_BGT_UP,  ____,           ____},
+        {BL_RST,    KC_POWER,   ____,       ____,           ____,           ____,       /* split */     ____,       ____,           KC_BGT_DN,  KC_BGT_UP,  ____,           ____},
         {____,      ____,       ____,       ____,           ____,           ____,       /* split */     ____,       ____,           KC_VOL_DN,  KC_VOL_UP,  KC_MUTE,        ____},
-        {____,      ____,       ____,       ____,           ____,           ____,       /* split */     ____,       ____,           ____,       ____,       ____,           ____},
+        {____,      TOG_L0,     TOG_L1,     TOG_L2,         TOG_L3,         ____,       /* split */     ____,       ____,           L_B_DN,     L_B_UP,     ____,           ____},
         {____,      ____,       ____,       ____,           ____,           ____,       /* split */     ____,       ____,           ____,       ____,       ____,           ____}
     }
 };
 
 // private functions
+static bool kbc_on_key_press(uint row, uint col, keymap_entry_t key) {
+    if ((key & ENTRY_TYPE_MASK) == ENTRY_TYPE_KBC) {
+        switch (key & KBC_INDEX_MASK) {
+            case KBC_COM_BRIGHTNESS_DOWN:   leds_brightness_down();     matrix_suppress_key_until_release(row, col);    return true;
+            case KBC_COM_BRIGHTNESS_UP:     leds_brightness_up();       matrix_suppress_key_until_release(row, col);    return true;
+            case KBC_COM_LED0_TOGGLE:       leds_toggle_led_enabled(0); matrix_suppress_key_until_release(row, col);    return true;
+            case KBC_COM_LED1_TOGGLE:       leds_toggle_led_enabled(1); matrix_suppress_key_until_release(row, col);    return true;
+            case KBC_COM_LED2_TOGGLE:       leds_toggle_led_enabled(2); matrix_suppress_key_until_release(row, col);    return true;
+            case KBC_COM_LED3_TOGGLE:       leds_toggle_led_enabled(3); matrix_suppress_key_until_release(row, col);    return true;
+            case KBC_COM_RESET_TO_BL:       reset_usb_boot(0, 0);                                                       return true;
+        }
+    }
+
+    return false;
+}
+
+static bool kbc_on_key_release(uint row, uint col, keymap_entry_t key) {
+    return false;
+}
+
+static bool kbc_on_virtual_key(keymap_entry_t key) {
+    kbc_on_key_press(0xff, 0xff, key);
+}
+
 static void keyboard_handle_remaining_presses(void) {
     keymap_entry_t key = KC_NONE;
 
@@ -151,6 +183,7 @@ static void keyboard_handle_remaining_presses(void) {
 }
 
 static void keyboard_on_key_release(uint row, uint col, keymap_entry_t key) {
+    if (kbc_on_key_release(row, col, key)) return;
     if (macro_on_key_release(row, col, key)) return;
     if (combo_on_key_release(row, col, key)) return;
     if (layers_on_key_release(row, col, key)) return;
@@ -159,6 +192,7 @@ static void keyboard_on_key_release(uint row, uint col, keymap_entry_t key) {
 }
 
 static void keyboard_on_key_press(uint row, uint col, keymap_entry_t key) {
+    if (kbc_on_key_press(row, col, key)) return;
     if (macro_on_key_press(row, col, key)) return;
 
     if (!tapholds_any_active()) {
@@ -171,6 +205,7 @@ static void keyboard_on_key_press(uint row, uint col, keymap_entry_t key) {
 }
 
 static void keyboard_handle_virtual_key(keymap_entry_t key) {
+    if (kbc_on_virtual_key(key)) return;
     if (macro_on_virtual_key(key)) return;
     if (layers_on_virtual_key(key)) return;
 }
@@ -250,12 +285,6 @@ void keyboard_post_scan(void) {
     // Clear the report
     keyboard_clear_sent_keys();
     report_press_count = 0;
-
-    // Quick and dirty reset to bootloader, should move this to a proper key handler
-    if (matrix_key_pressed(0, 0, true) && matrix_key_pressed(1, 1, true) && matrix_key_pressed(2, 2, true)) {
-        reset_usb_boot(0, 0);
-        return;
-    }
 
     // Before processing the keypresses, handle any released keys
     const uint32_t* released_bitmap = matrix_get_released_this_scan_bitmap();

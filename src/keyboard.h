@@ -38,6 +38,7 @@ typedef uint32_t keymap_entry_t;
 #define ENTRY_TYPE_TAPHOLD      (0x20000000)
 #define ENTRY_TYPE_DOUBLE_TAP   (0x30000000)
 #define ENTRY_TYPE_MACRO        (0x40000000)
+#define ENTRY_TYPE_KBC          (0x50000000)
 
 #define KC_MASK             (0x000000ff)
 #define KEY_MODS_MASK       (0x0000ff00)
@@ -81,6 +82,24 @@ typedef uint32_t keymap_entry_t;
 
 #define MACRO(index)                (ENTRY_TYPE_MACRO | index)
 #define MACRO_INDEX_MASK            (0xffff)
+
+#define KBC_COM_BRIGHTNESS_UP       (0x0000)
+#define KBC_COM_BRIGHTNESS_DOWN     (0x0001)
+#define KBC_COM_LED0_TOGGLE         (0x0002)
+#define KBC_COM_LED1_TOGGLE         (0x0003)
+#define KBC_COM_LED2_TOGGLE         (0x0004)
+#define KBC_COM_LED3_TOGGLE         (0x0005)
+#define KBC_COM_RESET_TO_BL         (0x0006)
+
+#define KBC(command)                (ENTRY_TYPE_KBC | command)
+#define KBC_BRIGHTNESS_UP           KBC(KBC_COM_BRIGHTNESS_UP)
+#define KBC_BRIGHTNESS_DOWN         KBC(KBC_COM_BRIGHTNESS_DOWN)
+#define KBC_LED0_TOGGLE             KBC(KBC_COM_LED0_TOGGLE)
+#define KBC_LED1_TOGGLE             KBC(KBC_COM_LED1_TOGGLE)
+#define KBC_LED2_TOGGLE             KBC(KBC_COM_LED2_TOGGLE)
+#define KBC_LED3_TOGGLE             KBC(KBC_COM_LED3_TOGGLE)
+#define KBC_RESET_TO_BL             KBC(KBC_COM_RESET_TO_BL)
+#define KBC_INDEX_MASK              (0xffff)
 
 // key definitions
 #define KC_NONE     KEY(HID_KEY_NONE)

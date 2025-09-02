@@ -121,6 +121,12 @@ void matrix_suppress_held_until_release(void) {
     }
 }
 
+void matrix_suppress_key_until_release(uint32_t row, uint32_t col) {
+    // Only actually supress the key when it is already held
+    if (row >= MATRIX_ROWS || col >= MATRIX_COLS) return;
+    suppressed_until_release[row] |= (pressed_bitmap[row] & (1 << col));
+}
+
 void matrix_mark_key_as_handled(uint32_t row, uint32_t col) {
     if (row >= MATRIX_ROWS || col >= MATRIX_COLS) return;
     handled_bitmap[row] |= 1 << col;

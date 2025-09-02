@@ -7,6 +7,12 @@
                              ((uint32_t) (leds_state.leds_out[i][1]) << 16) | \
                              (uint32_t) (leds_state.leds_out[i][2]))
 
+#define BRIGHTNESS_DELTA    (16)
+
+// The LEDs are wired right to left on this board. Use this macro at the edge (just before shifting out) to keep everything else
+// thinking that LED 0 is on the left as expected
+#define BODGE_INDEX(index)  (NUM_LEDS - index - 1)
+
 // statics
 static leds_state_t leds_state = {
     .leds = { 0 },
@@ -30,6 +36,10 @@ static void leds_compute_brightness_adjusted_color(uint index) {
         color_rgb2hsl(leds_state.leds[index], color);
         color[2] = leds_state.brightness;
         color_hsl2rgb(color, leds_state.leds_out[index]);
+    } else {
+        leds_state.leds_out[index][0] = 0;
+        leds_state.leds_out[index][1] = 0;
+        leds_state.leds_out[index][2] = 0;
     }
 }
 
@@ -38,31 +48,23 @@ void leds_set_color(uint led_index, uint8_t r, uint8_t g, uint8_t b) {
     if (led_index >= NUM_LEDS) return;
 
     // LED 0 on this board is the rightmost led, so twiddle the index around
-    uint adjusted_index = NUM_LEDS - led_index - 1;
-    bool led_changed = (leds_state.leds[adjusted_index][0] != r || leds_state.leds[adjusted_index][1] != g || leds_state.leds[adjusted_index][2] != b);
+    bool led_changed = (leds_state.leds[led_index][0] != r || leds_state.leds[led_index][1] != g || leds_state.leds[led_index][2] != b);
 
     if (led_changed) {
         leds_state.should_transmit = true;
 
-        leds_state.leds[adjusted_index][0] = r;
-        leds_state.leds[adjusted_index][1] = g;
-        leds_state.leds[adjusted_index][2] = b;
+        leds_state.leds[led_index][0] = r;
+        leds_state.leds[led_index][1] = g;
+        leds_state.leds[led_index][2] = b;
 
-        leds_compute_brightness_adjusted_color(adjusted_index);
-
-        // If this led is off, or configured off by the user, then set the output directly to black
-        if (leds_is_off(adjusted_index)) {
-            leds_state.leds_out[adjusted_index][0] = 0;
-            leds_state.leds_out[adjusted_index][1] = 0;
-            leds_state.leds_out[adjusted_index][2] = 0;
-        }
+        leds_compute_brightness_adjusted_color(led_index);
     }
 }
 
 void leds_write(void) {
     if (leds_state.should_transmit) {
         for (uint i = 0; i < NUM_LEDS; i++) {
-            ws2812_write(LED_TO_U32(i));
+            ws2812_write(LED_TO_U32(BODGE_INDEX(i)));
         }
     }
     leds_state.should_transmit = false;
@@ -70,4 +72,33 @@ void leds_write(void) {
 
 void leds_init(void) {
     ws2812_init();
+}
+
+void leds_brightness_up(void) {
+    if (leds_state.brightness < (0x100 - BRIGHTNESS_DELTA)) {
+        leds_state.brightness += BRIGHTNESS_DELTA;
+
+        for (uint i = 0; i < NUM_LEDS; i++) {
+            leds_compute_brightness_adjusted_color(i);
+        }
+
+        leds_write();
+    }
+}
+
+void leds_brightness_down(void) {
+    if (leds_state.brightness > 0) {
+        leds_state.brightness -= BRIGHTNESS_DELTA;
+
+        for (uint i = 0; i < NUM_LEDS; i++) {
+            leds_compute_brightness_adjusted_color(i);
+        }
+
+        leds_write();
+    }
+}
+
+void leds_toggle_led_enabled(uint led_index) {
+    leds_state.mask ^= (1 << led_index);
+    leds_compute_brightness_adjusted_color(led_index);
 }
