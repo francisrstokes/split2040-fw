@@ -11,6 +11,7 @@
 #include "combo.h"
 #include "layers.h"
 #include "macro.h"
+#include "leds.h"
 #include "matrix.h"
 
 #include <string.h>
@@ -49,8 +50,15 @@
 #define S_MINUS                 LS(KC_MINUS)
 
 #define SPC_ENT                 DT(KC_SPC, KC_ENTER, 0x0)
+#define HOME_PU                 DT(KC_HOME, KC_PU, 0x0)
+#define END_PD                  DT(KC_END, KC_PD, 0x0)
 
 #define M_DEREF                 MACRO(0)
+
+#define LED1_R(mods)             ((mods & (LA_BIT | RA_BIT)) ? 255 : 0)
+#define LED1_G(mods)             ((mods & (LS_BIT | RS_BIT)) ? 255 : 0)
+#define LED1_B(mods)             ((mods & (LC_BIT | RC_BIT)) ? 255 : 0)
+#define LED2_W(mods)             ((mods & (LG_BIT | RG_BIT)) ? 255 : 0)
 
 // statics
 static uint8_t* keyboard_hid_report_ref = NULL;
@@ -93,18 +101,18 @@ static const keymap_entry_t keymap[NUM_LAYERS][MATRIX_ROWS][MATRIX_COLS] = {
         {GRV_ESC,   KC_Q,       KC_W,       KC_E,           KC_R,           KC_T,       /* split */     KC_Y,       KC_U,           KC_I,       KC_O,       KC_P,           KC_BSPC},
         {KC_TAB,    LG_T(KC_A), LA_T(KC_S), LS_T(KC_D),     LC_T(KC_F),     KC_G,       /* split */     KC_H,       LC_T(KC_J),     LS_T(KC_K), LA_T(KC_L), LG_T(KC_SCLN),  KC_QUOTE},
         {KC_LSFT,   KC_Z,       KC_X,       KC_C,           KC_V,           KC_B,       /* split */     KC_N,       KC_M,           KC_COMMA,   KC_DOT,     KC_SLASH,       KC_ENTER},
-        {KC_LCTL,   KC_HOME,    KC_LALT,    KC_LGUI,        LOWER,          SPC_ENT,    /* split */     KC_SPC,     RAISE,          KC_END,     KC_HOME,    KC_RSFT,        KC_RCTL}
+        {KC_LCTL,   KC_HOME,    KC_LALT,    KC_LGUI,        LOWER,          SPC_ENT,    /* split */     KC_SPC,     RAISE,          END_PD,     HOME_PU,    KC_RSFT,        KC_RCTL}
     },
 
     [LAYER_LOWER] = {
-        {KC_F1,    KC_F2,      KC_F3,      KC_F4,           KC_F5,          KC_F6,       /* split */     KC_F7,     KC_F8,          KC_F9,      KC_F10,     KC_F11,         KC_F12},
+        {KC_F1,    KC_F2,      KC_F3,      KC_F4,           KC_F5,          KC_F6,       /* split */     KC_F7,     KC_F8,          KC_F9,      KC_F10,     KC_F11,         ____},
         {KC_PTSC,  LG_T(KC_1), LA_T(KC_2), LS_T(KC_3),      LC_T(KC_4),     KC_5,        /* split */     KC_6,      LC_T(KC_7),     LS_T(KC_8), LA_T(KC_9), LG_T(KC_0),     KC_MINUS},
         {____,     C_LEFT,     C_DOWN,     C_UP,            C_RIGHT,        ____,        /* split */     ____,      KC_LEFT,        KC_DOWN,    KC_UP,      KC_RIGHT,       M_DEREF},
         {____,     ____,       ____,       ____,            ____,           ____,        /* split */     ____,       ____,          ____,       ____,       ____,           ____}
     },
 
     [LAYER_RAISE] = {
-        {____,      KC_BRKT_L,  KC_BRKT_R,  LS(KC_BRKT_L),  LS(KC_BRKT_R),  ____,       /* split */      ____,       LS(KC_BSLS),   KC_BSLS,    KC_EQ,      ____,           KC_DEL},
+        {____,      KC_BRKT_L,  KC_BRKT_R,  LS(KC_BRKT_L),  LS(KC_BRKT_R),  ____,       /* split */      ____,       LS(KC_BSLS),   KC_BSLS,    KC_EQ,      LS(KC_EQ),      KC_DEL},
         {____,      S_1,        S_2,        S_3,            S_4,            S_5,        /* split */      S_6,        S_7,           S_8,        S_9,        S_0,            S_MINUS},
         {____,      ____,       ____,       ____,           ____,           ____,       /* split */      ____,       KC_LEFT,       KC_DOWN,    KC_UP,      KC_RIGHT,       ____},
         {KC_CAPS,   ____,       ____,       ____,           ____,           ____,       /* split */      ____,       ____,          ____,       ____,       ____,           ____}
@@ -194,6 +202,9 @@ void keyboard_init(uint8_t* keyboard_hid_report) {
 
     // Init macros
     macro_init(macros);
+
+    // Set the initial layer
+    layers_set(LAYER_QWERTY);
 }
 
 bool keyboard_send_key(keymap_entry_t key) {
@@ -281,6 +292,10 @@ void keyboard_post_scan(void) {
             keyboard_handle_remaining_presses();
         }
     }
+
+    // Show which modifiers are held on LEDs 1 & 2
+    leds_set_color(1, LED1_R(keyboard_hid_report_ref[0]), LED1_G(keyboard_hid_report_ref[0]), LED1_B(keyboard_hid_report_ref[0]));
+    leds_set_color(2, LED2_W(keyboard_hid_report_ref[0]), LED2_W(keyboard_hid_report_ref[0]), LED2_W(keyboard_hid_report_ref[0]));
 }
 
 keymap_entry_t keyboard_resolve_key(uint row, uint col) {

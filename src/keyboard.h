@@ -47,13 +47,23 @@ typedef uint32_t keymap_entry_t;
 
 #define LAYER_COM_MO        (0x00 << ENTRY_ARG8_SHIFT)
 
+// modifiers
+#define LC_BIT              (1 << 0)
+#define LS_BIT              (1 << 1)
+#define LA_BIT              (1 << 2)
+#define LG_BIT              (1 << 3)
+#define RC_BIT              (1 << 4)
+#define RS_BIT              (1 << 5)
+#define RA_BIT              (1 << 6)
+#define RG_BIT              (1 << 7)
+
 // matrix macros
 #define KEY(kc)             (kc)
 
-#define LC(kc)              KEY((1 << (KEY_MODS_SHIFT + 0)) | kc)
-#define LS(kc)              KEY((1 << (KEY_MODS_SHIFT + 1)) | kc)
-#define LA(kc)              KEY((1 << (KEY_MODS_SHIFT + 2)) | kc)
-#define LG(kc)              KEY((1 << (KEY_MODS_SHIFT + 3)) | kc)
+#define LC(kc)              KEY((LC_BIT << KEY_MODS_SHIFT) | kc)
+#define LS(kc)              KEY((LS_BIT << KEY_MODS_SHIFT) | kc)
+#define LA(kc)              KEY((LA_BIT << KEY_MODS_SHIFT) | kc)
+#define LG(kc)              KEY((LG_BIT << KEY_MODS_SHIFT) | kc)
 
 #define LAYER_COM(c, index) (ENTRY_TYPE_LAYER | (c) | (index))
 #define MO(index)           LAYER_COM(LAYER_COM_MO, index)
@@ -61,10 +71,10 @@ typedef uint32_t keymap_entry_t;
 #define TAP_HOLD(tkc, hkc, mods)    (ENTRY_TYPE_TAPHOLD | (hkc << ENTRY_ARG8_SHIFT) | ((mods) << ENTRY_ARG4_SHIFT) | (tkc))
 #define MOD_TAP(kc, mods)           TAP_HOLD(kc, KC_NONE, mods)
 
-#define LC_T(kc)                    MOD_TAP(kc, (1 << 0))
-#define LS_T(kc)                    MOD_TAP(kc, (1 << 1))
-#define LA_T(kc)                    MOD_TAP(kc, (1 << 2))
-#define LG_T(kc)                    MOD_TAP(kc, (1 << 3))
+#define LC_T(kc)                    MOD_TAP(kc, LC_BIT)
+#define LS_T(kc)                    MOD_TAP(kc, LS_BIT)
+#define LA_T(kc)                    MOD_TAP(kc, LA_BIT)
+#define LG_T(kc)                    MOD_TAP(kc, LG_BIT)
 
 #define DOUBLE_TAP(tkc, dkc, dmods) (ENTRY_TYPE_DOUBLE_TAP | (dkc << ENTRY_ARG8_SHIFT) | ((dmods) << ENTRY_ARG4_SHIFT) | (tkc))
 #define DT(tkc, dkc, dmods)         DOUBLE_TAP(tkc, dkc, dmods)
@@ -87,6 +97,8 @@ typedef uint32_t keymap_entry_t;
 #define KC_ENTER    KEY(HID_KEY_ENTER)
 #define KC_HOME     KEY(HID_KEY_HOME)
 #define KC_END      KEY(HID_KEY_END)
+#define KC_PD       KEY(HID_KEY_PAGE_DOWN)
+#define KC_PU       KEY(HID_KEY_PAGE_UP)
 #define KC_SPC      KEY(HID_KEY_SPACE)
 #define KC_MINUS    KEY(HID_KEY_MINUS)
 #define KC_BRKT_L   KEY(HID_KEY_BRACKET_LEFT)

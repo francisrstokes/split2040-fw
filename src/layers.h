@@ -28,3 +28,4 @@ bool layers_on_key_release(uint row, uint col, keymap_entry_t key);
 bool layers_on_virtual_key(keymap_entry_t key);
 uint8_t layers_get_current(void);
 uint8_t layers_get_base(void);
+void layers_set(uint8_t layer);

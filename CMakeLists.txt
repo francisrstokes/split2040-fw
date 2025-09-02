@@ -20,6 +20,8 @@ add_executable(usb_keyboard
         src/macro.c
         src/ll_alloc.c
         src/ws2812.c
+        src/color.c
+        src/leds.c
         )
 
 target_link_libraries(usb_keyboard PRIVATE pico_stdlib hardware_resets hardware_irq hardware_pio)

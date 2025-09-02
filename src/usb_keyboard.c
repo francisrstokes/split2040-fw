@@ -20,7 +20,7 @@
 #include "descriptors.h"
 #include "matrix.h"
 #include "keyboard.h"
-#include "ws2812.h"
+#include "leds.h"
 
 #define usb_hw_set ((usb_hw_t *)hw_set_alias_untyped(usb_hw))
 #define usb_hw_clear ((usb_hw_t *)hw_clear_alias_untyped(usb_hw))
@@ -480,13 +480,13 @@ static bool matrix_scan_timer_cb(repeating_timer_t *rt) {
         usb_start_transfer(&dev_config.endpoints[EP_KEYBOARD_IN], (uint8_t*)keyboard_hid_report, 8);
     }
 
-    ws2812_write();
+    leds_write();
 
     return true;
 }
 
 int main(void) {
-    ws2812_init();
+    leds_init();
     matrix_init();
     keyboard_init(next_keyboard_hid_report);
     usb_device_init();

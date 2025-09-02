@@ -1,7 +1,8 @@
 #include "layers.h"
 #include "keyboard.h"
 #include "matrix.h"
-#include "ws2812.h"
+#include "color.h"
+#include "leds.h"
 
 // statics
 static layer_state_t layer_state = {
@@ -15,12 +16,6 @@ static const uint8_t layer_colors[NUM_LAYERS][3] = {
     {ORANGE},
     {MAGENTA}
 };
-
-// private functions
-static void layers_set(uint8_t layer) {
-    layer_state.current = layer;
-    ws2812_set_color(0, layer_colors[layer][0], layer_colors[layer][1], layer_colors[layer][2]);
-}
 
 // public functions
 bool layers_on_key_press(uint row, uint col, keymap_entry_t key) {
@@ -69,4 +64,9 @@ uint8_t layers_get_current(void) {
 
 uint8_t layers_get_base(void) {
     return layer_state.base;
+}
+
+void layers_set(uint8_t layer) {
+    layer_state.current = layer;
+    leds_set_color(0, layer_colors[layer][0], layer_colors[layer][1], layer_colors[layer][2]);
 }
