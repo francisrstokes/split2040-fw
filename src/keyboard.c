@@ -63,10 +63,14 @@
 #define L_B_UP                  KBC_BRIGHTNESS_UP
 #define L_B_DN                  KBC_BRIGHTNESS_DOWN
 
-#define LED1_R(mods)             ((mods & (LA_BIT | RA_BIT)) ? 255 : 0)
-#define LED1_G(mods)             ((mods & (LS_BIT | RS_BIT)) ? 255 : 0)
-#define LED1_B(mods)             ((mods & (LC_BIT | RC_BIT)) ? 255 : 0)
-#define LED2_W(mods)             ((mods & (LG_BIT | RG_BIT)) ? 255 : 0)
+#define LED1_R(mods)            ((mods & (LA_BIT | RA_BIT)) ? 255 : 0)
+#define LED1_G(mods)            ((mods & (LS_BIT | RS_BIT)) ? 255 : 0)
+#define LED1_B(mods)            ((mods & (LC_BIT | RC_BIT)) ? 255 : 0)
+#define LED2_W(mods)            ((mods & (LG_BIT | RG_BIT)) ? 255 : 0)
+#define LED3_W(led_status)      ((led_status & (1 << 1)) ? 255 : 0)
+
+#define RUN_BUILD               LC(LS(KC_B))
+#define RUN_TESTS               LC(LA(KC_T))
 
 // statics
 static uint8_t* keyboard_hid_report_ref = NULL;
@@ -128,7 +132,7 @@ static const keymap_entry_t keymap[NUM_LAYERS][MATRIX_ROWS][MATRIX_COLS] = {
 
     [LAYER_FN] = {
         {BL_RST,    KC_POWER,   ____,       ____,           ____,           ____,       /* split */     ____,       ____,           KC_BGT_DN,  KC_BGT_UP,  ____,           ____},
-        {____,      ____,       ____,       ____,           ____,           ____,       /* split */     ____,       ____,           KC_VOL_DN,  KC_VOL_UP,  KC_MUTE,        ____},
+        {____,      ____,       ____,       ____,           RUN_BUILD,      ____,       /* split */     ____,       RUN_TESTS,      KC_VOL_DN,  KC_VOL_UP,  KC_MUTE,        ____},
         {____,      TOG_L0,     TOG_L1,     TOG_L2,         TOG_L3,         ____,       /* split */     ____,       ____,           L_B_DN,     L_B_UP,     ____,           ____},
         {____,      ____,       ____,       ____,           ____,           ____,       /* split */     ____,       ____,           ____,       ____,       ____,           ____}
     }
@@ -352,4 +356,8 @@ keymap_entry_t keyboard_resolve_key_on_layer(uint row, uint col, uint layer) {
 
 uint8_t keyboard_get_current_layer(void) {
     return layers_get_current();
+}
+
+void keyboard_on_led_status_report(uint8_t led_status) {
+    leds_set_color(3, LED3_W(led_status), LED3_W(led_status), LED3_W(led_status));
 }

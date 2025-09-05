@@ -274,6 +274,15 @@ void usb_acknowledge_out_request(void) {
     usb_start_transfer(&dev_config.endpoints[EP0_IN], NULL, 0);
 }
 
+void usb_acknowledge_in_request(void) {
+    usb_start_transfer(&dev_config.endpoints[EP0_OUT], NULL, 0);
+}
+
+void usb_rx_set_report_from_host(void) {
+    dev_config.endpoints[EP0_OUT].next_pid = 1u;
+    usb_start_transfer(&dev_config.endpoints[EP0_OUT], NULL, 1);
+}
+
 /**
  * @brief Handles a SET_ADDR request from the host. The actual setting of the device address in
  * hardware is done in ep0_in_handler. This is because we have to acknowledge the request first
@@ -335,6 +344,7 @@ void usb_handle_setup_packet(void) {
             switch (pkt->bRequest) {
                 case HID_REQ_CONTROL_SET_PROTOCOL:  usb_acknowledge_out_request();          break;
                 case HID_REQ_CONTROL_SET_IDLE:      usb_acknowledge_out_request();          break;
+                case HID_REQ_CONTROL_SET_REPORT:    usb_rx_set_report_from_host();          break;
                 default:                            usb_acknowledge_out_request();          break;
             }
         } else {
@@ -436,39 +446,36 @@ void isr_usbctrl(void) {
 }
 #endif
 
-/**
- * @brief EP0 in transfer complete. Either finish the SET_ADDRESS process, or receive a zero
- * length status packet from the host.
- *
- * @param buf the data that was sent
- * @param len the length that was sent
- */
+// EP0 IN packets are host initiated device-to-host communication.
 void ep0_in_handler(__unused uint8_t *buf, __unused uint16_t len) {
+    // If we arrived here after acknowledging a SET_ADDRESS request during the status stage, it's now safe to actually set the
+    // address in the peripheral
     if (should_set_address) {
         // Set actual device address in hardware
         usb_hw->dev_addr_ctrl = dev_addr;
         should_set_address = false;
-    } else {
-        // Receive a zero length status packet from the host on EP0 OUT
-        usb_start_transfer(&dev_config.endpoints[EP0_OUT], NULL, 0);
+        return;
     }
+
+    // All other circumstances when the firmware arrives here, its because a buffer we sent to the host completed, and we need to send a zero-length packet
+    // to acknowledge the transaction.
+    usb_acknowledge_in_request();
 }
 
-void ep0_out_handler(__unused uint8_t *buf, __unused uint16_t len) {
-    // If we need to handle specific OUT data, do it here
-
-    // For SET_REPORT requests, we should examine the data
-    // but for now, just acknowledge completion
+void ep0_out_handler(uint8_t *buf, __unused uint16_t len) {
     volatile struct usb_setup_packet *pkt = (volatile struct usb_setup_packet *) &usb_dpram->setup_packet;
+    if (pkt->bRequest == HID_REQ_CONTROL_SET_REPORT) {
+        keyboard_on_led_status_report(*buf);
+    }
 
-    // For most requests, we need to acknowledge with a zero-length IN packet
-    usb_start_transfer(&dev_config.endpoints[EP0_IN], NULL, 0);
+    // In all cases in this firmware, we arrive here after having sent a buffer to the host during the data stage.
+    // Now it's the status stage, and we need to acknowledge the transaction with a zero-length packet to EP0 IN.
+    usb_acknowledge_out_request();
 }
 
 // Device specific functions
 void ep1_in_handler(uint8_t *buf, uint16_t len) {
-    // Data was RXd by host, clear the bit to mark as handled
-    usb_hw->buf_status &= ~(1 << 2);
+    // Buffer is complete, and buffer status was already cleared, so nothing in particular to do here.
 }
 
 static bool matrix_scan_timer_cb(repeating_timer_t *rt) {
