@@ -10,6 +10,7 @@ project(usb_keyboard_firmware)
 pico_sdk_init()
 
 add_executable(usb_keyboard
+        src/main.c
         src/usb_keyboard.c
         src/matrix.c
         src/keyboard.c

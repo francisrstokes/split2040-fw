@@ -4,8 +4,7 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
-#ifndef _USB_COMMON_H
-#define _USB_COMMON_H
+#pragma once
 
 #include "pico/types.h"
 #include "hardware/structs/usb.h"
@@ -145,6 +144,7 @@ struct usb_hid_descriptor
   uint16_t wReportLength;   /**< the total size of the Report descriptor. */
 } __attribute__((packed));
 
-
-
-#endif
+void usb_device_init(void);
+uint8_t* usb_get_hid_descriptor_ptr(void);
+void usb_wait_for_device_to_configured(void);
+void usb_update(void);

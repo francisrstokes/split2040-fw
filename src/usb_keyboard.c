@@ -26,9 +26,9 @@
 #define usb_hw_clear ((usb_hw_t *)hw_clear_alias_untyped(usb_hw))
 
 // Function prototypes for our device specific endpoint handlers defined later on
-void ep0_in_handler(uint8_t *buf, uint16_t len);
-void ep0_out_handler(uint8_t *buf, uint16_t len);
-void ep1_in_handler(uint8_t *buf, uint16_t len);
+static void ep0_in_handler(uint8_t *buf, uint16_t len);
+static void ep0_out_handler(uint8_t *buf, uint16_t len);
+static void ep1_in_handler(uint8_t *buf, uint16_t len);
 
 // Global device address
 static bool should_set_address = false;
@@ -41,7 +41,6 @@ static uint8_t ep0_buf[64];
 // HID keyboard report
 static uint8_t keyboard_hid_report[8] = {0};
 static uint8_t next_keyboard_hid_report[8] = {0};
-static repeating_timer_t matrix_scan_timer = {0};
 
 // Struct defining the device configuration
 static struct usb_device_configuration dev_config = {
@@ -86,7 +85,7 @@ static struct usb_device_configuration dev_config = {
     }
 };
 
-uint8_t usb_prepare_string_descriptor(const unsigned char *str) {
+static uint8_t usb_prepare_string_descriptor(const unsigned char *str) {
     // 2 for bLength + bDescriptorType + strlen * 2 because string is unicode. i.e. other byte will be 0
     uint8_t bLength = 2 + (strlen((const char *)str) * 2);
     static const uint8_t bDescriptorType = 0x03;
@@ -110,7 +109,7 @@ static inline uint32_t usb_buffer_offset(volatile uint8_t *buf) {
     return (uint32_t) buf ^ (uint32_t) usb_dpram;
 }
 
-void usb_setup_endpoints(void) {
+static void usb_setup_endpoints(void) {
     // Just set up the keyboard in endpoint
     uint32_t dpram_offset = usb_buffer_offset(dev_config.endpoints[EP_KEYBOARD_IN].data_buffer);
     uint32_t reg = EP_CTRL_ENABLE_BITS
@@ -121,51 +120,11 @@ void usb_setup_endpoints(void) {
     *dev_config.endpoints[EP_KEYBOARD_IN].endpoint_control = reg;
 }
 
-void usb_device_init() {
-    // Reset usb controller
-    reset_unreset_block_num_wait_blocking(RESET_USBCTRL);
-
-    // Clear any previous state in dpram just in case
-    memset(usb_dpram, 0, sizeof(*usb_dpram)); // <1>
-
-    // Enable USB interrupt at processor
-    irq_set_enabled(USBCTRL_IRQ, true);
-
-    // Mux the controller to the onboard usb phy
-    usb_hw->muxing = USB_USB_MUXING_TO_PHY_BITS | USB_USB_MUXING_SOFTCON_BITS;
-
-    // Force VBUS detect so the device thinks it is plugged into a host
-    usb_hw->pwr = USB_USB_PWR_VBUS_DETECT_BITS | USB_USB_PWR_VBUS_DETECT_OVERRIDE_EN_BITS;
-
-    // Enable the USB controller in device mode.
-    usb_hw->main_ctrl = USB_MAIN_CTRL_CONTROLLER_EN_BITS;
-
-    // Enable an interrupt per EP0 transaction
-    usb_hw->sie_ctrl = USB_SIE_CTRL_EP0_INT_1BUF_BITS; // <2>
-
-    // Enable interrupts for when a buffer is done, when the bus is reset,
-    // and when a setup packet is received
-    usb_hw->inte = USB_INTS_BUFF_STATUS_BITS |
-                   USB_INTS_BUS_RESET_BITS |
-                   USB_INTS_SETUP_REQ_BITS;
-
-    // Set up endpoint control registers described by device configuration
-    usb_setup_endpoints();
-
-    // Present full speed device by enabling pull up on DP
-    usb_hw_set->sie_ctrl = USB_SIE_CTRL_PULLUP_EN_BITS;
-}
-
 static inline bool ep_is_tx(struct usb_endpoint_configuration *ep) {
     return ep->descriptor->bEndpointAddress & USB_DIR_IN;
 }
 
-void usb_send_nack(struct usb_endpoint_configuration *ep) {
-    // Set the abort bit on EP1_IN (keyboard)
-    usb_hw->abort |= (1 << 2);
-}
-
-void usb_start_transfer(struct usb_endpoint_configuration *ep, uint8_t *buf, uint16_t len) {
+static void usb_start_transfer(struct usb_endpoint_configuration *ep, uint8_t *buf, uint16_t len) {
     // We are asserting that the length is <= 64 bytes for simplicity of the example.
     // For multi packet transfers see the tinyusb port.
     assert(len <= 64);
@@ -187,7 +146,7 @@ void usb_start_transfer(struct usb_endpoint_configuration *ep, uint8_t *buf, uin
     *ep->buffer_control = val;
 }
 
-void usb_handle_device_descriptor(volatile struct usb_setup_packet *pkt) {
+static void usb_handle_device_descriptor(volatile struct usb_setup_packet *pkt) {
     usb_start_transfer(
         &dev_config.endpoints[EP0_IN],
         (uint8_t*)dev_config.device_descriptor,
@@ -195,7 +154,7 @@ void usb_handle_device_descriptor(volatile struct usb_setup_packet *pkt) {
     );
 }
 
-void usb_handle_config_descriptor(volatile struct usb_setup_packet *pkt) {
+static void usb_handle_config_descriptor(volatile struct usb_setup_packet *pkt) {
     uint32_t len = 0;
     uint8_t *buf = &ep0_buf[0];
 
@@ -226,7 +185,7 @@ void usb_handle_config_descriptor(volatile struct usb_setup_packet *pkt) {
     usb_start_transfer(&dev_config.endpoints[EP0_IN], &ep0_buf[0], MIN(len, pkt->wLength));
 }
 
-void usb_handle_hid_descriptor(volatile struct usb_setup_packet *pkt) {
+static void usb_handle_hid_descriptor(volatile struct usb_setup_packet *pkt) {
     usb_start_transfer(
         &dev_config.endpoints[EP0_IN],
         (uint8_t*)dev_config.hid_descriptor,
@@ -234,7 +193,7 @@ void usb_handle_hid_descriptor(volatile struct usb_setup_packet *pkt) {
     );
 }
 
-void usb_handle_hid_report_descriptor(volatile struct usb_setup_packet *pkt) {
+static void usb_handle_hid_report_descriptor(volatile struct usb_setup_packet *pkt) {
     usb_start_transfer(
         &dev_config.endpoints[EP0_IN],
         (uint8_t*)hid_boot_keyboard_report_descriptor,
@@ -242,12 +201,12 @@ void usb_handle_hid_report_descriptor(volatile struct usb_setup_packet *pkt) {
     );
 }
 
-void usb_handle_get_protocol(volatile struct usb_setup_packet *pkt) {
+static void usb_handle_get_protocol(volatile struct usb_setup_packet *pkt) {
     const uint8_t boot_protocol = 0u;
     usb_start_transfer(&dev_config.endpoints[EP0_IN], (uint8_t*)&boot_protocol, 1u);
 }
 
-void usb_bus_reset(void) {
+static void usb_bus_reset(void) {
     // Set address back to 0
     dev_addr = 0;
     should_set_address = false;
@@ -255,7 +214,7 @@ void usb_bus_reset(void) {
     configured = false;
 }
 
-void usb_handle_string_descriptor(volatile struct usb_setup_packet *pkt) {
+static void usb_handle_string_descriptor(volatile struct usb_setup_packet *pkt) {
     uint8_t i = pkt->wValue & 0xff;
     uint8_t len = 0;
 
@@ -270,15 +229,15 @@ void usb_handle_string_descriptor(volatile struct usb_setup_packet *pkt) {
     usb_start_transfer(&dev_config.endpoints[EP0_IN], &ep0_buf[0], MIN(len, pkt->wLength));
 }
 
-void usb_acknowledge_out_request(void) {
+static void usb_acknowledge_out_request(void) {
     usb_start_transfer(&dev_config.endpoints[EP0_IN], NULL, 0);
 }
 
-void usb_acknowledge_in_request(void) {
+static void usb_acknowledge_in_request(void) {
     usb_start_transfer(&dev_config.endpoints[EP0_OUT], NULL, 0);
 }
 
-void usb_rx_set_report_from_host(void) {
+static void usb_rx_set_report_from_host(void) {
     dev_config.endpoints[EP0_OUT].next_pid = 1u;
     usb_start_transfer(&dev_config.endpoints[EP0_OUT], NULL, 1);
 }
@@ -290,7 +249,7 @@ void usb_rx_set_report_from_host(void) {
  *
  * @param pkt, the setup packet from the host.
  */
-void usb_set_device_address(volatile struct usb_setup_packet *pkt) {
+static void usb_set_device_address(volatile struct usb_setup_packet *pkt) {
     // Set address is a bit of a strange case because we have to send a 0 length status packet first with
     // address 0
     dev_addr = (pkt->wValue & 0xff);
@@ -300,13 +259,13 @@ void usb_set_device_address(volatile struct usb_setup_packet *pkt) {
     usb_acknowledge_out_request();
 }
 
-void usb_set_device_configuration(__unused volatile struct usb_setup_packet *pkt) {
+static void usb_set_device_configuration(__unused volatile struct usb_setup_packet *pkt) {
     // Only one configuration so just acknowledge the request
     usb_acknowledge_out_request();
     configured = true;
 }
 
-void usb_handle_setup_packet(void) {
+static void usb_handle_setup_packet(void) {
     volatile struct usb_setup_packet *pkt = (volatile struct usb_setup_packet *) &usb_dpram->setup_packet;
 
     // IN=device to host, OUT=host to device
@@ -447,7 +406,7 @@ void isr_usbctrl(void) {
 #endif
 
 // EP0 IN packets are host initiated device-to-host communication.
-void ep0_in_handler(__unused uint8_t *buf, __unused uint16_t len) {
+static void ep0_in_handler(__unused uint8_t *buf, __unused uint16_t len) {
     // If we arrived here after acknowledging a SET_ADDRESS request during the status stage, it's now safe to actually set the
     // address in the peripheral
     if (should_set_address) {
@@ -462,7 +421,7 @@ void ep0_in_handler(__unused uint8_t *buf, __unused uint16_t len) {
     usb_acknowledge_in_request();
 }
 
-void ep0_out_handler(uint8_t *buf, __unused uint16_t len) {
+static void ep0_out_handler(uint8_t *buf, __unused uint16_t len) {
     volatile struct usb_setup_packet *pkt = (volatile struct usb_setup_packet *) &usb_dpram->setup_packet;
     if (pkt->bRequest == HID_REQ_CONTROL_SET_REPORT) {
         keyboard_on_led_status_report(*buf);
@@ -478,35 +437,57 @@ void ep1_in_handler(uint8_t *buf, uint16_t len) {
     // Buffer is complete, and buffer status was already cleared, so nothing in particular to do here.
 }
 
-static bool matrix_scan_timer_cb(repeating_timer_t *rt) {
-    matrix_scan();
+// public functions
+void usb_device_init(void) {
+    // Reset usb controller
+    reset_unreset_block_num_wait_blocking(RESET_USBCTRL);
 
-    // Only prepare a new interrupt response when something has changed (the hardware will nack the interrupt IN if no data is already in the buffer)
-    if (memcmp(next_keyboard_hid_report, keyboard_hid_report, 8) != 0) {
-        memcpy(keyboard_hid_report, next_keyboard_hid_report, 8);
-        usb_start_transfer(&dev_config.endpoints[EP_KEYBOARD_IN], (uint8_t*)keyboard_hid_report, 8);
-    }
+    // Clear any previous state in dpram just in case
+    memset(usb_dpram, 0, sizeof(*usb_dpram)); // <1>
 
-    leds_write();
+    // Enable USB interrupt at processor
+    irq_set_enabled(USBCTRL_IRQ, true);
 
-    return true;
+    // Mux the controller to the onboard usb phy
+    usb_hw->muxing = USB_USB_MUXING_TO_PHY_BITS | USB_USB_MUXING_SOFTCON_BITS;
+
+    // Force VBUS detect so the device thinks it is plugged into a host
+    usb_hw->pwr = USB_USB_PWR_VBUS_DETECT_BITS | USB_USB_PWR_VBUS_DETECT_OVERRIDE_EN_BITS;
+
+    // Enable the USB controller in device mode.
+    usb_hw->main_ctrl = USB_MAIN_CTRL_CONTROLLER_EN_BITS;
+
+    // Enable an interrupt per EP0 transaction
+    usb_hw->sie_ctrl = USB_SIE_CTRL_EP0_INT_1BUF_BITS; // <2>
+
+    // Enable interrupts for when a buffer is done, when the bus is reset,
+    // and when a setup packet is received
+    usb_hw->inte = USB_INTS_BUFF_STATUS_BITS |
+                   USB_INTS_BUS_RESET_BITS |
+                   USB_INTS_SETUP_REQ_BITS;
+
+    // Set up endpoint control registers described by device configuration
+    usb_setup_endpoints();
+
+    // Present full speed device by enabling pull up on DP
+    usb_hw_set->sie_ctrl = USB_SIE_CTRL_PULLUP_EN_BITS;
 }
 
-int main(void) {
-    leds_init();
-    matrix_init();
-    keyboard_init(next_keyboard_hid_report);
-    usb_device_init();
+uint8_t* usb_get_hid_descriptor_ptr(void) {
+    return next_keyboard_hid_report;
+}
 
+void usb_wait_for_device_to_configured(void) {
     // Wait until configured
     while (!configured) {
         tight_loop_contents();
     }
+}
 
-    // After we're configured, setup a repeating timer for scanning the key matrix
-    add_repeating_timer_ms(-MATRIX_SCAN_INTERVAL_MS, matrix_scan_timer_cb, NULL, &matrix_scan_timer);
-
-    while (1) {
-        tight_loop_contents();
+void usb_update(void) {
+    // Only prepare a new interrupt response when something has changed (the hardware will nack the interrupt IN if no data is already in the buffer)
+    if (memcmp(next_keyboard_hid_report, keyboard_hid_report, 8) != 0) {
+        memcpy(keyboard_hid_report, next_keyboard_hid_report, 8);
+        usb_start_transfer(&dev_config.endpoints[EP_KEYBOARD_IN], (uint8_t*)keyboard_hid_report, 8);
     }
 }
