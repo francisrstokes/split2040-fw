@@ -11,11 +11,9 @@
 #include "usb_common.h"
 #include "hid.h"
 
-#define EP0_OUT         (0)
-#define EP0_IN          (1)
-#define EP_KEYBOARD_IN  (2)
-
-typedef void (*usb_ep_handler)(uint8_t *buf, uint16_t len);
+#define EP0_IN_ADDR     (USB_DIR_IN  | 0)
+#define EP0_OUT_ADDR    (USB_DIR_OUT | 0)
+#define EP1_IN_ADDR     (USB_DIR_IN  | 1)
 
 const uint8_t hid_boot_keyboard_report_descriptor[] = {
     HID_USAGE_PAGE(HID_USAGE_PAGE_DESKTOP),
@@ -61,38 +59,6 @@ const uint8_t hid_boot_keyboard_report_descriptor[] = {
 
     HID_COLLECTION_END
 };
-
-// Struct in which we keep the endpoint configuration
-struct usb_endpoint_configuration {
-    const struct usb_endpoint_descriptor *descriptor;
-    usb_ep_handler handler;
-
-    // Pointers to endpoint + buffer control registers
-    // in the USB controller DPSRAM
-    volatile uint32_t *endpoint_control;
-    volatile uint32_t *buffer_control;
-    volatile uint8_t *data_buffer;
-
-    // Toggle after each packet (unless replying to a SETUP)
-    uint8_t next_pid;
-};
-
-// Struct in which we keep the device configuration
-struct usb_device_configuration {
-    const struct usb_device_descriptor *device_descriptor;
-    const struct usb_interface_descriptor *interface_descriptor;
-    const struct usb_configuration_descriptor *config_descriptor;
-    const struct usb_hid_descriptor *hid_descriptor;
-    const uint8_t *hid_keyboard_report_descriptor;
-    const unsigned char *lang_descriptor;
-    const unsigned char **descriptor_strings;
-    // USB num endpoints is 16
-    struct usb_endpoint_configuration endpoints[USB_NUM_ENDPOINTS];
-};
-
-#define EP0_IN_ADDR  (USB_DIR_IN  | 0)
-#define EP0_OUT_ADDR (USB_DIR_OUT | 0)
-#define EP1_IN_ADDR  (USB_DIR_IN  | 1)
 
 // EP0 IN and OUT
 static const struct usb_endpoint_descriptor ep0_out = {

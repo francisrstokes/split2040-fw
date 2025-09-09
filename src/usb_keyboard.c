@@ -25,72 +25,76 @@
 #define usb_hw_set ((usb_hw_t *)hw_set_alias_untyped(usb_hw))
 #define usb_hw_clear ((usb_hw_t *)hw_clear_alias_untyped(usb_hw))
 
+// Typedefs
+typedef enum ep0_state_t {
+    ep0_state_idle,
+    ep0_state_tx_buf,
+    ep0_state_rx_buf,
+    ep0_state_zlp_in,
+    ep0_state_zlp_out,
+} ep0_state_t;
+
+typedef struct endpoint_t {
+    uint8_t* data_buffer;
+    volatile uint32_t* buffer_control;
+    volatile uint32_t* endpoint_control;
+    const struct usb_endpoint_descriptor* descriptor;
+    uint8_t next_pid;
+} endpoint_t;
+
+typedef struct endpoint_zero_state_t {
+    ep0_state_t state;
+    struct usb_setup_packet setup_packet;
+
+    endpoint_t in;
+    endpoint_t out;
+} endpoint_zero_state_t;
+
 // Function prototypes for our device specific endpoint handlers defined later on
-static void ep0_in_handler(uint8_t *buf, uint16_t len);
-static void ep0_out_handler(uint8_t *buf, uint16_t len);
-static void ep1_in_handler(uint8_t *buf, uint16_t len);
+static void ep0_in_handler(void);
+static void ep0_out_handler(void);
 
 // Global device address
-static bool should_set_address = false;
-static uint8_t dev_addr = 0;
-static volatile bool configured = false;
+static volatile bool configured_by_host = false;
 
-// Global data buffer for EP0
-static uint8_t ep0_buf[64];
+static endpoint_zero_state_t ep0 = {
+    .state = ep0_state_idle,
+    .setup_packet = {0},
+    .out = {
+        .buffer_control = &usb_dpram->ep_buf_ctrl[0].out,
+        .endpoint_control = NULL,
+        .data_buffer = &usb_dpram->ep0_buf_a[0],
+        .descriptor = &ep0_out,
+        .next_pid = 0
+    },
+    .in = {
+        .buffer_control = &usb_dpram->ep_buf_ctrl[0].in,
+        .endpoint_control = NULL,
+        .data_buffer = &usb_dpram->ep0_buf_a[0],
+        .descriptor = &ep0_in,
+        .next_pid = 0
+    },
+};
+
+static endpoint_t ep_kb_in = {
+    .buffer_control = &usb_dpram->ep_buf_ctrl[1].in,
+    .endpoint_control = &usb_dpram->ep_ctrl[0].in,
+    .data_buffer = &usb_dpram->epx_data[0],
+    .descriptor = &ep1_in,
+    .next_pid = 0
+};
 
 // HID keyboard report
 static uint8_t keyboard_hid_report[8] = {0};
 static uint8_t next_keyboard_hid_report[8] = {0};
 
-// Struct defining the device configuration
-static struct usb_device_configuration dev_config = {
-    .device_descriptor = &device_descriptor,
-    .interface_descriptor = &interface_descriptor,
-    .config_descriptor = &config_descriptor,
-    .hid_descriptor = &hid_descriptor,
-    .hid_keyboard_report_descriptor = hid_boot_keyboard_report_descriptor,
-    .lang_descriptor = lang_descriptor,
-    .descriptor_strings = descriptor_strings,
-    .endpoints = {
-        // EP0_OUT
-        {
-            .descriptor = &ep0_out,
-            .handler = &ep0_out_handler,
-            .endpoint_control = NULL, // NA for EP0
-            .buffer_control = &usb_dpram->ep_buf_ctrl[0].out,
-            // EP0 in and out share a data buffer
-            .data_buffer = &usb_dpram->ep0_buf_a[0],
-        },
-        // EP0_IN
-        {
-            .descriptor = &ep0_in,
-            .handler = &ep0_in_handler,
-            .endpoint_control = NULL, // NA for EP0,
-            .buffer_control = &usb_dpram->ep_buf_ctrl[0].in,
-            // EP0 in and out share a data buffer
-            .data_buffer = &usb_dpram->ep0_buf_a[0],
-        },
-
-        // EP_KEYBOARD_IN
-        {
-            .descriptor = &ep1_in,
-            .handler = &ep1_in_handler,
-            // endpoint control starts with endpoint 1, so this is 0
-            .endpoint_control = &usb_dpram->ep_ctrl[0].in,
-            // buffer control starts with endpoint 0, so this is 1
-            .buffer_control = &usb_dpram->ep_buf_ctrl[1].in,
-            // Since ep0 has a dedicated shared buffer, this endpoint essentially gets the whole rest of the dpram
-            .data_buffer = &usb_dpram->epx_data[0],
-        }
-    }
-};
-
+// Private functions
 static uint8_t usb_prepare_string_descriptor(const unsigned char *str) {
     // 2 for bLength + bDescriptorType + strlen * 2 because string is unicode. i.e. other byte will be 0
     uint8_t bLength = 2 + (strlen((const char *)str) * 2);
     static const uint8_t bDescriptorType = 0x03;
 
-    volatile uint8_t *buf = &ep0_buf[0];
+    volatile uint8_t *buf = ep0.in.data_buffer;
     *buf++ = bLength;
     *buf++ = bDescriptorType;
 
@@ -105,26 +109,22 @@ static uint8_t usb_prepare_string_descriptor(const unsigned char *str) {
     return bLength;
 }
 
-static inline uint32_t usb_buffer_offset(volatile uint8_t *buf) {
-    return (uint32_t) buf ^ (uint32_t) usb_dpram;
-}
-
 static void usb_setup_endpoints(void) {
     // Just set up the keyboard in endpoint
-    uint32_t dpram_offset = usb_buffer_offset(dev_config.endpoints[EP_KEYBOARD_IN].data_buffer);
+    uint32_t dpram_offset = (uint32_t)ep_kb_in.data_buffer ^ (uint32_t)usb_dpram;
     uint32_t reg = EP_CTRL_ENABLE_BITS
                    | EP_CTRL_INTERRUPT_PER_BUFFER
-                   | (dev_config.endpoints[EP_KEYBOARD_IN].descriptor->bmAttributes << EP_CTRL_BUFFER_TYPE_LSB)
+                   | (ep_kb_in.descriptor->bmAttributes << EP_CTRL_BUFFER_TYPE_LSB)
                    | dpram_offset;
 
-    *dev_config.endpoints[EP_KEYBOARD_IN].endpoint_control = reg;
+    *ep_kb_in.endpoint_control = reg;
 }
 
-static inline bool ep_is_tx(struct usb_endpoint_configuration *ep) {
+static inline bool ep_is_tx(endpoint_t* ep) {
     return ep->descriptor->bEndpointAddress & USB_DIR_IN;
 }
 
-static void usb_start_transfer(struct usb_endpoint_configuration *ep, uint8_t *buf, uint16_t len) {
+static void usb_start_transfer(endpoint_t* ep, uint8_t *buf, uint16_t len) {
     // We are asserting that the length is <= 64 bytes for simplicity of the example.
     // For multi packet transfers see the tinyusb port.
     assert(len <= 64);
@@ -147,55 +147,59 @@ static void usb_start_transfer(struct usb_endpoint_configuration *ep, uint8_t *b
 }
 
 static void usb_handle_device_descriptor(volatile struct usb_setup_packet *pkt) {
+    ep0.state = ep0_state_tx_buf;
     usb_start_transfer(
-        &dev_config.endpoints[EP0_IN],
-        (uint8_t*)dev_config.device_descriptor,
+        &ep0.in,
+        (uint8_t*)&device_descriptor,
         MIN(sizeof(struct usb_device_descriptor), pkt->wLength)
     );
 }
 
 static void usb_handle_config_descriptor(volatile struct usb_setup_packet *pkt) {
     uint32_t len = 0;
-    uint8_t *buf = &ep0_buf[0];
+    uint8_t *buf = ep0.in.data_buffer;
 
     // First request will want just the config descriptor
-    const struct usb_configuration_descriptor *d = dev_config.config_descriptor;
+    const struct usb_configuration_descriptor *d = &config_descriptor;
     memcpy((void *) buf, d, sizeof(struct usb_configuration_descriptor));
     buf += sizeof(struct usb_configuration_descriptor);
     len += sizeof(struct usb_configuration_descriptor);
 
     // If we're asked more than just the config descriptor copy it all
     if (pkt->wLength >= d->wTotalLength) {
-        memcpy((void *) buf, dev_config.interface_descriptor, sizeof(struct usb_interface_descriptor));
+        memcpy((void *) buf, &interface_descriptor, sizeof(struct usb_interface_descriptor));
         buf += sizeof(struct usb_interface_descriptor);
         len += sizeof(struct usb_interface_descriptor);
 
         // Add the HID descriptor
-        memcpy((void *) buf, dev_config.hid_descriptor, sizeof(struct usb_hid_descriptor));
+        memcpy((void *) buf, &hid_descriptor, sizeof(struct usb_hid_descriptor));
         buf += sizeof(struct usb_hid_descriptor);
         len += sizeof(struct usb_hid_descriptor);
 
         // Add the keyboard endpoint
-        memcpy((void *)buf, dev_config.endpoints[EP_KEYBOARD_IN].descriptor, sizeof(struct usb_endpoint_descriptor));
+        memcpy((void *)buf, ep_kb_in.descriptor, sizeof(struct usb_endpoint_descriptor));
         buf += sizeof(struct usb_endpoint_descriptor);
         len += sizeof(struct usb_endpoint_descriptor);
     }
 
     // Send data
-    usb_start_transfer(&dev_config.endpoints[EP0_IN], &ep0_buf[0], MIN(len, pkt->wLength));
+    ep0.state = ep0_state_tx_buf;
+    usb_start_transfer(&ep0.in, ep0.in.data_buffer, MIN(len, pkt->wLength));
 }
 
 static void usb_handle_hid_descriptor(volatile struct usb_setup_packet *pkt) {
+    ep0.state = ep0_state_tx_buf;
     usb_start_transfer(
-        &dev_config.endpoints[EP0_IN],
-        (uint8_t*)dev_config.hid_descriptor,
+        &ep0.in,
+        (uint8_t*)&hid_descriptor,
         MIN(pkt->wLength, sizeof(struct usb_hid_descriptor))
     );
 }
 
 static void usb_handle_hid_report_descriptor(volatile struct usb_setup_packet *pkt) {
+    ep0.state = ep0_state_tx_buf;
     usb_start_transfer(
-        &dev_config.endpoints[EP0_IN],
+        &ep0.in,
         (uint8_t*)hid_boot_keyboard_report_descriptor,
         MIN(pkt->wLength, sizeof(hid_boot_keyboard_report_descriptor))
     );
@@ -203,15 +207,19 @@ static void usb_handle_hid_report_descriptor(volatile struct usb_setup_packet *p
 
 static void usb_handle_get_protocol(volatile struct usb_setup_packet *pkt) {
     const uint8_t boot_protocol = 0u;
-    usb_start_transfer(&dev_config.endpoints[EP0_IN], (uint8_t*)&boot_protocol, 1u);
+
+    ep0.state = ep0_state_tx_buf;
+    usb_start_transfer(&ep0.in, (uint8_t*)&boot_protocol, 1u);
 }
 
 static void usb_bus_reset(void) {
     // Set address back to 0
-    dev_addr = 0;
-    should_set_address = false;
     usb_hw->dev_addr_ctrl = 0;
-    configured = false;
+    ep0.in.next_pid = 0;
+    ep0.out.next_pid = 0;
+    ep0.state = ep0_state_idle;
+    ep_kb_in.next_pid = 0;
+    configured_by_host = false;
 }
 
 static void usb_handle_string_descriptor(volatile struct usb_setup_packet *pkt) {
@@ -220,60 +228,50 @@ static void usb_handle_string_descriptor(volatile struct usb_setup_packet *pkt) 
 
     if (i == 0) {
         len = 4;
-        memcpy(&ep0_buf[0], dev_config.lang_descriptor, len);
+        memcpy(ep0.in.data_buffer, lang_descriptor, len);
     } else {
         // Prepare fills in ep0_buf
-        len = usb_prepare_string_descriptor(dev_config.descriptor_strings[i - 1]);
+        len = usb_prepare_string_descriptor(descriptor_strings[i - 1]);
     }
 
-    usb_start_transfer(&dev_config.endpoints[EP0_IN], &ep0_buf[0], MIN(len, pkt->wLength));
+    ep0.state = ep0_state_tx_buf;
+    usb_start_transfer(&ep0.in, ep0.in.data_buffer, MIN(len, pkt->wLength));
 }
 
 static void usb_acknowledge_out_request(void) {
-    usb_start_transfer(&dev_config.endpoints[EP0_IN], NULL, 0);
+    ep0.state = ep0_state_zlp_in;
+    usb_start_transfer(&ep0.in, NULL, 0);
 }
 
 static void usb_acknowledge_in_request(void) {
-    usb_start_transfer(&dev_config.endpoints[EP0_OUT], NULL, 0);
+    ep0.state = ep0_state_zlp_out;
+    usb_start_transfer(&ep0.out, NULL, 0);
 }
 
 static void usb_rx_set_report_from_host(void) {
-    dev_config.endpoints[EP0_OUT].next_pid = 1u;
-    usb_start_transfer(&dev_config.endpoints[EP0_OUT], NULL, 1);
+    ep0.state = ep0_state_rx_buf;
+    usb_start_transfer(&ep0.out, NULL, 1);
 }
 
-/**
- * @brief Handles a SET_ADDR request from the host. The actual setting of the device address in
- * hardware is done in ep0_in_handler. This is because we have to acknowledge the request first
- * as a device with address zero.
- *
- * @param pkt, the setup packet from the host.
- */
-static void usb_set_device_address(volatile struct usb_setup_packet *pkt) {
-    // Set address is a bit of a strange case because we have to send a 0 length status packet first with
-    // address 0
-    dev_addr = (pkt->wValue & 0xff);
-
-    // Will set address in the callback phase
-    should_set_address = true;
-    usb_acknowledge_out_request();
-}
-
-static void usb_set_device_configuration(__unused volatile struct usb_setup_packet *pkt) {
+static void usb_set_device_configuration(void) {
     // Only one configuration so just acknowledge the request
+    configured_by_host = true;
     usb_acknowledge_out_request();
-    configured = true;
 }
 
 static void usb_handle_setup_packet(void) {
     volatile struct usb_setup_packet *pkt = (volatile struct usb_setup_packet *) &usb_dpram->setup_packet;
 
+    // Copy the setup packet to the ep0 struct
+    memcpy(&ep0.setup_packet, (void*)pkt, sizeof(struct usb_setup_packet));
+
     // IN=device to host, OUT=host to device
     bool in_req = (pkt->bmRequestType & USB_DIR_MASK) == USB_DIR_IN;
     bool class_req = (pkt->bmRequestType & USB_REQ_TYPE_TYPE_MASK) == USB_REQ_TYPE_TYPE_CLASS;
 
-    // For control transfers, always reset PID to 1 for EP0 IN (which causes the transfer to use DATA0 as the pid)
-    dev_config.endpoints[EP0_IN].next_pid = 1u;
+    // A setup packet is always sent with DATA0, so any response should use DATA1
+    ep0.in.next_pid = 1u;
+    ep0.out.next_pid = 1u;
 
     // Is data being requested?
     if (in_req) {
@@ -308,64 +306,32 @@ static void usb_handle_setup_packet(void) {
             }
         } else {
             switch (pkt->bRequest) {
-                case USB_REQUEST_SET_ADDRESS:       usb_set_device_address(pkt);            break;
-                case USB_REQUEST_SET_CONFIGURATION: usb_set_device_configuration(pkt);      break;
+                case USB_REQUEST_SET_ADDRESS:       usb_acknowledge_out_request();            break;
+                case USB_REQUEST_SET_CONFIGURATION: usb_set_device_configuration();      break;
             }
         }
     }
 }
 
-static void usb_handle_ep_buff_done(struct usb_endpoint_configuration *ep) {
-    uint32_t buffer_control = *ep->buffer_control;
-    // Get the transfer length for this endpoint
-    uint16_t len = buffer_control & USB_BUF_CTRL_LEN_MASK;
-
-    // Call that endpoints buffer done handler
-    ep->handler((uint8_t *) ep->data_buffer, len);
-}
-
-static void usb_handle_buff_done(uint ep_num, bool in) {
-    uint8_t ep_addr = ep_num | (in ? USB_DIR_IN : 0);
-
-    for (uint i = 0; i < USB_NUM_ENDPOINTS; i++) {
-        struct usb_endpoint_configuration *ep = &dev_config.endpoints[i];
-        if (ep->descriptor && ep->handler) {
-            if (ep->descriptor->bEndpointAddress == ep_addr) {
-                usb_handle_ep_buff_done(ep);
-                return;
-            }
-        }
-    }
-}
-
-/**
- * @brief Handle a "buffer status" irq. This means that one or more
- * buffers have been sent / received. Notify each endpoint where this
- * is the case.
- */
 static void usb_handle_buff_status() {
     uint32_t buffers = usb_hw->buf_status;
-    uint32_t remaining_buffers = buffers;
 
-    uint bit = 1u;
-    for (uint i = 0; remaining_buffers && i < USB_NUM_ENDPOINTS * 2; i++) {
-        if (remaining_buffers & bit) {
-            // clear this in advance
-            usb_hw_clear->buf_status = bit;
+    if (buffers & USB_BUFF_CPU_SHOULD_HANDLE_EP0_IN_BITS) {
+        usb_hw_clear->buf_status = USB_BUFF_CPU_SHOULD_HANDLE_EP0_IN_BITS;
+        ep0_in_handler();
+    }
 
-            // IN transfer for even i, OUT transfer for odd i
-            // Note: this comes from the chip register layout, not the indexing of how the endpoints are organised in the dev_config
-            usb_handle_buff_done(i >> 1u, !(i & 1u));
-            remaining_buffers &= ~bit;
-        }
-        bit <<= 1u;
+    if (buffers & USB_BUFF_CPU_SHOULD_HANDLE_EP0_OUT_BITS) {
+        usb_hw_clear->buf_status = USB_BUFF_CPU_SHOULD_HANDLE_EP0_OUT_BITS;
+        ep0_out_handler();
+    }
+
+    if (buffers & USB_BUFF_CPU_SHOULD_HANDLE_EP1_IN_BITS) {
+        usb_hw_clear->buf_status = USB_BUFF_CPU_SHOULD_HANDLE_EP1_IN_BITS;
     }
 }
 
-/**
- * @brief USB interrupt handler
- *
- */
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -390,7 +356,6 @@ void isr_usbctrl(void) {
 
     // Bus is reset
     if (status & USB_INTS_BUS_RESET_BITS) {
-        printf("BUS RESET\n");
         handled |= USB_INTS_BUS_RESET_BITS;
         usb_hw_clear->sie_status = USB_SIE_STATUS_BUS_RESET_BITS;
         usb_bus_reset();
@@ -406,35 +371,48 @@ void isr_usbctrl(void) {
 #endif
 
 // EP0 IN packets are host initiated device-to-host communication.
-static void ep0_in_handler(__unused uint8_t *buf, __unused uint16_t len) {
-    // If we arrived here after acknowledging a SET_ADDRESS request during the status stage, it's now safe to actually set the
-    // address in the peripheral
-    if (should_set_address) {
-        // Set actual device address in hardware
-        usb_hw->dev_addr_ctrl = dev_addr;
-        should_set_address = false;
-        return;
-    }
+static void ep0_in_handler(void) {
+    switch (ep0.state) {
+        // Data stage complete, go to the status stage
+        case ep0_state_tx_buf: {
+            usb_acknowledge_in_request();
+        } break;
 
-    // All other circumstances when the firmware arrives here, its because a buffer we sent to the host completed, and we need to send a zero-length packet
-    // to acknowledge the transaction.
-    usb_acknowledge_in_request();
+        // Status stage (and transaction) complete
+        case ep0_state_zlp_in: {
+            if (ep0.setup_packet.bRequest == USB_REQUEST_SET_ADDRESS) {
+                // Now that the SET_ADDRESS request is over, start using the supplied address
+                usb_hw->dev_addr_ctrl = ep0.setup_packet.wValue & 0xff;
+            }
+            ep0.state = ep0_state_idle;
+        } break;
+
+        default: {
+            ep0.state = ep0_state_idle;
+        }
+    }
 }
 
-static void ep0_out_handler(uint8_t *buf, __unused uint16_t len) {
-    volatile struct usb_setup_packet *pkt = (volatile struct usb_setup_packet *) &usb_dpram->setup_packet;
-    if (pkt->bRequest == HID_REQ_CONTROL_SET_REPORT) {
-        keyboard_on_led_status_report(*buf);
+// EP0 OUT packets are host initiated host-to-device communication.
+static void ep0_out_handler(void) {
+    switch (ep0.state) {
+        // Data stage complete, go to the status stage
+        case ep0_state_rx_buf: {
+            if (ep0.setup_packet.bRequest == HID_REQ_CONTROL_SET_REPORT) {
+                keyboard_on_led_status_report(ep0.out.data_buffer[0]);
+            }
+            usb_acknowledge_out_request();
+        } break;
+
+        // Status stage (and transaction) complete
+        case ep0_state_zlp_out: {
+            ep0.state = ep0_state_idle;
+        } break;
+
+        default: {
+            ep0.state = ep0_state_idle;
+        }
     }
-
-    // In all cases in this firmware, we arrive here after having sent a buffer to the host during the data stage.
-    // Now it's the status stage, and we need to acknowledge the transaction with a zero-length packet to EP0 IN.
-    usb_acknowledge_out_request();
-}
-
-// Device specific functions
-void ep1_in_handler(uint8_t *buf, uint16_t len) {
-    // Buffer is complete, and buffer status was already cleared, so nothing in particular to do here.
 }
 
 // public functions
@@ -479,7 +457,7 @@ uint8_t* usb_get_hid_descriptor_ptr(void) {
 
 void usb_wait_for_device_to_configured(void) {
     // Wait until configured
-    while (!configured) {
+    while (!configured_by_host) {
         tight_loop_contents();
     }
 }
@@ -488,6 +466,6 @@ void usb_update(void) {
     // Only prepare a new interrupt response when something has changed (the hardware will nack the interrupt IN if no data is already in the buffer)
     if (memcmp(next_keyboard_hid_report, keyboard_hid_report, 8) != 0) {
         memcpy(keyboard_hid_report, next_keyboard_hid_report, 8);
-        usb_start_transfer(&dev_config.endpoints[EP_KEYBOARD_IN], (uint8_t*)keyboard_hid_report, 8);
+        usb_start_transfer(&ep_kb_in, (uint8_t*)keyboard_hid_report, 8);
     }
 }
