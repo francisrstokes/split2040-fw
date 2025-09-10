@@ -17,7 +17,7 @@
 #include "hardware/resets.h"
 
 // Device descriptors
-#include "descriptors.h"
+#include "usb_descriptors.h"
 #include "matrix.h"
 #include "keyboard.h"
 #include "leds.h"
@@ -64,14 +64,14 @@ static endpoint_zero_state_t ep0 = {
         .buffer_control = &usb_dpram->ep_buf_ctrl[0].out,
         .endpoint_control = NULL,
         .data_buffer = &usb_dpram->ep0_buf_a[0],
-        .descriptor = &ep0_out,
+        .descriptor = NULL,
         .next_pid = 0
     },
     .in = {
         .buffer_control = &usb_dpram->ep_buf_ctrl[0].in,
         .endpoint_control = NULL,
         .data_buffer = &usb_dpram->ep0_buf_a[0],
-        .descriptor = &ep0_in,
+        .descriptor = NULL,
         .next_pid = 0
     },
 };
@@ -80,7 +80,7 @@ static endpoint_t ep_kb_in = {
     .buffer_control = &usb_dpram->ep_buf_ctrl[1].in,
     .endpoint_control = &usb_dpram->ep_ctrl[0].in,
     .data_buffer = &usb_dpram->epx_data[0],
-    .descriptor = &ep1_in,
+    .descriptor = NULL,
     .next_pid = 0
 };
 
@@ -110,6 +110,10 @@ static uint8_t usb_prepare_string_descriptor(const unsigned char *str) {
 }
 
 static void usb_setup_endpoints(void) {
+    ep0.out.descriptor = usb_get_ep0_out_descriptor();
+    ep0.in.descriptor = usb_get_ep0_in_descriptor();
+    ep_kb_in.descriptor = usb_get_ep1_in_descriptor();
+
     // Just set up the keyboard in endpoint
     uint32_t dpram_offset = (uint32_t)ep_kb_in.data_buffer ^ (uint32_t)usb_dpram;
     uint32_t reg = EP_CTRL_ENABLE_BITS
@@ -150,7 +154,7 @@ static void usb_handle_device_descriptor(volatile struct usb_setup_packet *pkt) 
     ep0.state = ep0_state_tx_buf;
     usb_start_transfer(
         &ep0.in,
-        (uint8_t*)&device_descriptor,
+        (uint8_t*)usb_get_device_descriptor(),
         MIN(sizeof(struct usb_device_descriptor), pkt->wLength)
     );
 }
@@ -160,19 +164,19 @@ static void usb_handle_config_descriptor(volatile struct usb_setup_packet *pkt) 
     uint8_t *buf = ep0.in.data_buffer;
 
     // First request will want just the config descriptor
-    const struct usb_configuration_descriptor *d = &config_descriptor;
+    const struct usb_configuration_descriptor *d = usb_get_configuration_descriptor();
     memcpy((void *) buf, d, sizeof(struct usb_configuration_descriptor));
     buf += sizeof(struct usb_configuration_descriptor);
     len += sizeof(struct usb_configuration_descriptor);
 
     // If we're asked more than just the config descriptor copy it all
     if (pkt->wLength >= d->wTotalLength) {
-        memcpy((void *) buf, &interface_descriptor, sizeof(struct usb_interface_descriptor));
+        memcpy((void *) buf, usb_get_interface_descriptor(), sizeof(struct usb_interface_descriptor));
         buf += sizeof(struct usb_interface_descriptor);
         len += sizeof(struct usb_interface_descriptor);
 
         // Add the HID descriptor
-        memcpy((void *) buf, &hid_descriptor, sizeof(struct usb_hid_descriptor));
+        memcpy((void *) buf, usb_get_hid_descriptor(), sizeof(struct usb_hid_descriptor));
         buf += sizeof(struct usb_hid_descriptor);
         len += sizeof(struct usb_hid_descriptor);
 
@@ -191,7 +195,7 @@ static void usb_handle_hid_descriptor(volatile struct usb_setup_packet *pkt) {
     ep0.state = ep0_state_tx_buf;
     usb_start_transfer(
         &ep0.in,
-        (uint8_t*)&hid_descriptor,
+        (uint8_t*)usb_get_hid_descriptor(),
         MIN(pkt->wLength, sizeof(struct usb_hid_descriptor))
     );
 }
@@ -200,8 +204,8 @@ static void usb_handle_hid_report_descriptor(volatile struct usb_setup_packet *p
     ep0.state = ep0_state_tx_buf;
     usb_start_transfer(
         &ep0.in,
-        (uint8_t*)hid_boot_keyboard_report_descriptor,
-        MIN(pkt->wLength, sizeof(hid_boot_keyboard_report_descriptor))
+        (uint8_t*)usb_get_hid_boot_keyboard_report_descriptor(),
+        MIN(pkt->wLength, usb_get_hid_boot_keyboard_report_descriptor_size())
     );
 }
 
@@ -228,10 +232,10 @@ static void usb_handle_string_descriptor(volatile struct usb_setup_packet *pkt) 
 
     if (i == 0) {
         len = 4;
-        memcpy(ep0.in.data_buffer, lang_descriptor, len);
+        memcpy(ep0.in.data_buffer, usb_get_lang_descriptor(), len);
     } else {
         // Prepare fills in ep0_buf
-        len = usb_prepare_string_descriptor(descriptor_strings[i - 1]);
+        len = usb_prepare_string_descriptor(usb_get_descriptor_strings()[i - 1]);
     }
 
     ep0.state = ep0_state_tx_buf;

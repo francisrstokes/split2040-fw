@@ -1,21 +1,13 @@
-/**
- * Copyright (c) 2020 Raspberry Pi (Trading) Ltd.
- * Copyright (c) 2025 Francis Stokes
- *
- * SPDX-License-Identifier: BSD-3-Clause
- */
-
-#ifndef DESCRIPTORS_H
-#define DESCRIPTORS_H
-
-#include "usb_common.h"
+#include "usb_descriptors.h"
 #include "hid.h"
 
+// defines
 #define EP0_IN_ADDR     (USB_DIR_IN  | 0)
 #define EP0_OUT_ADDR    (USB_DIR_OUT | 0)
 #define EP1_IN_ADDR     (USB_DIR_IN  | 1)
 
-const uint8_t hid_boot_keyboard_report_descriptor[] = {
+// static const structures
+static const uint8_t hid_boot_keyboard_report_descriptor[] = {
     HID_USAGE_PAGE(HID_USAGE_PAGE_DESKTOP),
     HID_USAGE(HID_USAGE_DESKTOP_KEYBOARD),
     HID_COLLECTION(HID_COLLECTION_APPLICATION),
@@ -70,7 +62,7 @@ static const struct usb_endpoint_descriptor ep0_out = {
     .bInterval        = 0
 };
 
-static const struct usb_endpoint_descriptor ep0_in = {
+const struct usb_endpoint_descriptor ep0_in = {
     .bLength          = sizeof(struct usb_endpoint_descriptor),
     .bDescriptorType  = USB_DT_ENDPOINT,
     .bEndpointAddress = EP0_IN_ADDR, // EP number 0, OUT from host (rx to device)
@@ -80,7 +72,7 @@ static const struct usb_endpoint_descriptor ep0_in = {
 };
 
 // Descriptors
-static const struct usb_device_descriptor device_descriptor = {
+const struct usb_device_descriptor device_descriptor = {
     .bLength         = sizeof(struct usb_device_descriptor),
     .bDescriptorType = USB_DT_DEVICE,
     .bcdUSB          = 0x0110, // USB 1.1 device
@@ -97,7 +89,7 @@ static const struct usb_device_descriptor device_descriptor = {
     .bNumConfigurations = 1    // One configuration
 };
 
-static const struct usb_interface_descriptor interface_descriptor = {
+const struct usb_interface_descriptor interface_descriptor = {
     .bLength            = sizeof(struct usb_interface_descriptor),
     .bDescriptorType    = USB_DT_INTERFACE,
     .bInterfaceNumber   = 0,
@@ -109,7 +101,7 @@ static const struct usb_interface_descriptor interface_descriptor = {
     .iInterface         = 0
 };
 
-static const struct usb_endpoint_descriptor ep1_in = {
+const struct usb_endpoint_descriptor ep1_in = {
     .bLength          = sizeof(struct usb_endpoint_descriptor),
     .bDescriptorType  = USB_DT_ENDPOINT,
     .bEndpointAddress = EP1_IN_ADDR, // EP number 1, IN from host (tx from device)
@@ -118,7 +110,7 @@ static const struct usb_endpoint_descriptor ep1_in = {
     .bInterval        = 10 // 10ms / 100Hz
 };
 
-static const struct usb_hid_descriptor hid_descriptor = {
+const struct usb_hid_descriptor hid_descriptor = {
     .bLength = sizeof(struct usb_hid_descriptor),
     .bDescriptorType = HID_DESC_TYPE_HID,
     .bcdHID = 0x0111,         // HID 1.11
@@ -128,7 +120,7 @@ static const struct usb_hid_descriptor hid_descriptor = {
     .wReportLength = sizeof(hid_boot_keyboard_report_descriptor)
 };
 
-static const struct usb_configuration_descriptor config_descriptor = {
+const struct usb_configuration_descriptor config_descriptor = {
     .bLength         = sizeof(struct usb_configuration_descriptor),
     .bDescriptorType = USB_DT_CONFIG,
     .wTotalLength    = (sizeof(config_descriptor) +
@@ -142,15 +134,58 @@ static const struct usb_configuration_descriptor config_descriptor = {
     .bMaxPower = 0xfa         // 500mA
 };
 
-static const unsigned char lang_descriptor[] = {
+const uint8_t lang_descriptor[] = {
     4,         // bLength
     0x03,      // bDescriptorType == String Descriptor
     0x09, 0x04 // language id = us english
 };
 
-static const unsigned char *descriptor_strings[] = {
-    (unsigned char *) "Francis Stokes", // Vendor
-    (unsigned char *) "split2040-fw"    // Product
+const unsigned char* descriptor_strings[] = {
+    (unsigned char*) "Francis Stokes", // Vendor
+    (unsigned char*) "split2040-fw"    // Product
 };
 
-#endif
+// public functions
+const uint8_t* usb_get_hid_boot_keyboard_report_descriptor(void) {
+    return (uint8_t*)hid_boot_keyboard_report_descriptor;
+}
+
+uint32_t usb_get_hid_boot_keyboard_report_descriptor_size(void) {
+    return sizeof(hid_boot_keyboard_report_descriptor);
+}
+
+const struct usb_endpoint_descriptor* usb_get_ep0_out_descriptor(void) {
+    return &ep0_out;
+}
+
+const struct usb_endpoint_descriptor* usb_get_ep0_in_descriptor(void) {
+    return &ep0_in;
+}
+
+const struct usb_endpoint_descriptor* usb_get_ep1_in_descriptor(void) {
+    return &ep1_in;
+}
+
+const struct usb_device_descriptor* usb_get_device_descriptor(void) {
+    return &device_descriptor;
+}
+
+const struct usb_interface_descriptor* usb_get_interface_descriptor(void) {
+    return &interface_descriptor;
+}
+
+const struct usb_hid_descriptor* usb_get_hid_descriptor(void) {
+    return &hid_descriptor;
+}
+
+const struct usb_configuration_descriptor* usb_get_configuration_descriptor(void) {
+    return &config_descriptor;
+}
+
+const uint8_t* usb_get_lang_descriptor(void) {
+    return lang_descriptor;
+}
+
+const unsigned char** usb_get_descriptor_strings(void) {
+    return descriptor_strings;
+}
