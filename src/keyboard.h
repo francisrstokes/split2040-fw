@@ -22,8 +22,6 @@ typedef uint32_t keymap_entry_t;
 */
 
 // defines
-#define NUM_LAYERS          (4)
-
 #define ENTRY_TYPE_MASK     (0xf0000000)
 #define ENTRY_ARG4_MASK     (0x0f000000)
 #define ENTRY_ARG4_SHIFT    (24)

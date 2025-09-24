@@ -31,6 +31,7 @@
 #define LOWER                   MO(LAYER_LOWER)
 #define RAISE                   MO(LAYER_RAISE)
 #define FN                      MO(LAYER_FN)
+#define SPLIT                   MO(LAYER_SPLIT)
 
 #define GRV_ESC                 TAP_HOLD(KC_ESC, KC_GRAVE, 0x00)
 
@@ -110,12 +111,12 @@ static macro_t macros[NUM_MACRO_SLOTS] = {
     [7] = MACRO_UNUSED
 };
 
-static const keymap_entry_t keymap[NUM_LAYERS][MATRIX_ROWS][MATRIX_COLS] = {
+static const keymap_entry_t keymap[LAYER_MAX][MATRIX_ROWS][MATRIX_COLS] = {
     [LAYER_QWERTY] = LAYOUT_HEX2A(
         GRV_ESC,   KC_Q,       KC_W,       KC_E,           KC_R,           KC_T,             /**/               KC_Y,       KC_U,           KC_I,       KC_O,       KC_P,           KC_BSPC,
         KC_TAB,    LG_T(KC_A), LA_T(KC_S), LS_T(KC_D),     LC_T(KC_F),     KC_G,             /**/               KC_H,       LC_T(KC_J),     LS_T(KC_K), LA_T(KC_L), LG_T(KC_SCLN),  KC_QUOTE,
         KC_LSFT,   KC_Z,       KC_X,       KC_C,           KC_V,           KC_B,             /**/               KC_N,       KC_M,           KC_COMMA,   KC_DOT,     KC_SLASH,       KC_ENTER,
-                                                           KC_LGUI,        LOWER,   SPC_ENT, /**/   KC_SPC,     RAISE,      END_PD
+                                                           SPLIT,          LOWER,   SPC_ENT, /**/   KC_SPC,     RAISE,      SPLIT
     ),
 
     [LAYER_LOWER] = LAYOUT_HEX2A(
@@ -136,6 +137,13 @@ static const keymap_entry_t keymap[NUM_LAYERS][MATRIX_ROWS][MATRIX_COLS] = {
         BL_RST,    KC_POWER,   ____,       ____,           ____,           ____,             /**/               ____,       ____,           KC_BGT_DN,  KC_BGT_UP,  ____,           ____,
         ____,      ____,       ____,       ____,           RUN_BUILD,      ____,             /**/               ____,       RUN_TESTS,      KC_VOL_DN,  KC_VOL_UP,  KC_MUTE,        ____,
         ____,      TOG_L0,     TOG_L1,     TOG_L2,         TOG_L3,         ____,             /**/               ____,       ____,           L_B_DN,     L_B_UP,     ____,           ____,
+                                                           ____,           ____,    ____,    /**/   ____,       ____,       ____
+    ),
+
+    [LAYER_SPLIT] = LAYOUT_HEX2A(
+        ____,      ____,       ____,       ____,           ____,           ____,             /**/               ____,       ____,           ____,       ____,       ____,           ____,
+        ____,      ____,       ____,       ____,           ____,           ____,             /**/               ____,       KC_BSPC,        KC_DEL,     ____,       ____,           ____,
+        ____,      ____,       LC(KC_X),   LC(KC_C),       LC(KC_V),       ____,             /**/               ____,       KC_PD,          KC_PU,      KC_END,     KC_HOME,        KC_CAPS,
                                                            ____,           ____,    ____,    /**/   ____,       ____,       ____
     )
 };

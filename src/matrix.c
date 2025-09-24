@@ -12,7 +12,7 @@
 #include "pico/stdlib.h"
 
 // Define
-#define MATRIX_SETTLE_ITERATIONS (25)
+#define MATRIX_SETTLE_ITERATIONS (50)
 
 // statics
 static uint32_t prev_pressed_bitmap[MATRIX_ROWS] = {0};

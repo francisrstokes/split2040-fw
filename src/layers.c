@@ -10,11 +10,12 @@ static layer_state_t layer_state = {
     .current = LAYER_QWERTY,
 };
 
-static const uint8_t layer_colors[NUM_LAYERS][3] = {
+static const uint8_t layer_colors[LAYER_MAX][3] = {
     {WHITE},
     {CYAN},
     {ORANGE},
-    {MAGENTA}
+    {MAGENTA},
+    {AQUAMARINE},
 };
 
 // public functions

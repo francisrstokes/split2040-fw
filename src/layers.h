@@ -14,7 +14,9 @@
 #define LAYER_LOWER             (1)
 #define LAYER_RAISE             (2)
 #define LAYER_FN                (3)
-#define LAYER_MAX               (4)
+#define LAYER_SPLIT             (4)
+
+#define LAYER_MAX               (5)
 
 // typedefs
 typedef struct layer_state_t {
