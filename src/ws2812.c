@@ -15,7 +15,7 @@
 #include "ws2812.h"
 
 // defines
-#define WS2812_PIN  (6)
+#define WS2812_PIN  (28)
 
 // statics
 static PIO pio;

@@ -14,6 +14,8 @@
 #include "leds.h"
 #include "matrix.h"
 
+#include "hex2a.h"
+
 #include <string.h>
 
 #include "pico/stdlib.h"
@@ -109,33 +111,33 @@ static macro_t macros[NUM_MACRO_SLOTS] = {
 };
 
 static const keymap_entry_t keymap[NUM_LAYERS][MATRIX_ROWS][MATRIX_COLS] = {
-    [LAYER_QWERTY] = {
-        {GRV_ESC,   KC_Q,       KC_W,       KC_E,           KC_R,           KC_T,       /* split */     KC_Y,       KC_U,           KC_I,       KC_O,       KC_P,           KC_BSPC},
-        {KC_TAB,    LG_T(KC_A), LA_T(KC_S), LS_T(KC_D),     LC_T(KC_F),     KC_G,       /* split */     KC_H,       LC_T(KC_J),     LS_T(KC_K), LA_T(KC_L), LG_T(KC_SCLN),  KC_QUOTE},
-        {KC_LSFT,   KC_Z,       KC_X,       KC_C,           KC_V,           KC_B,       /* split */     KC_N,       KC_M,           KC_COMMA,   KC_DOT,     KC_SLASH,       KC_ENTER},
-        {KC_LCTL,   KC_HOME,    KC_LALT,    KC_LGUI,        LOWER,          SPC_ENT,    /* split */     KC_SPC,     RAISE,          END_PD,     HOME_PU,    KC_RSFT,        KC_RCTL}
-    },
+    [LAYER_QWERTY] = LAYOUT_HEX2A(
+        GRV_ESC,   KC_Q,       KC_W,       KC_E,           KC_R,           KC_T,             /**/               KC_Y,       KC_U,           KC_I,       KC_O,       KC_P,           KC_BSPC,
+        KC_TAB,    LG_T(KC_A), LA_T(KC_S), LS_T(KC_D),     LC_T(KC_F),     KC_G,             /**/               KC_H,       LC_T(KC_J),     LS_T(KC_K), LA_T(KC_L), LG_T(KC_SCLN),  KC_QUOTE,
+        KC_LSFT,   KC_Z,       KC_X,       KC_C,           KC_V,           KC_B,             /**/               KC_N,       KC_M,           KC_COMMA,   KC_DOT,     KC_SLASH,       KC_ENTER,
+                                                           KC_LGUI,        LOWER,   SPC_ENT, /**/   KC_SPC,     RAISE,      END_PD
+    ),
 
-    [LAYER_LOWER] = {
-        {KC_F1,    KC_F2,      KC_F3,      KC_F4,           KC_F5,          KC_F6,       /* split */     KC_F7,     KC_F8,          KC_F9,      KC_F10,     KC_F11,         ____},
-        {KC_PTSC,  LG_T(KC_1), LA_T(KC_2), LS_T(KC_3),      LC_T(KC_4),     KC_5,        /* split */     KC_6,      LC_T(KC_7),     LS_T(KC_8), LA_T(KC_9), LG_T(KC_0),     KC_MINUS},
-        {____,     C_LEFT,     C_DOWN,     C_UP,            C_RIGHT,        ____,        /* split */     ____,      KC_LEFT,        KC_DOWN,    KC_UP,      KC_RIGHT,       M_DEREF},
-        {____,     ____,       ____,       ____,            ____,           ____,        /* split */     ____,       ____,          ____,       ____,       ____,           ____}
-    },
+    [LAYER_LOWER] = LAYOUT_HEX2A(
+        KC_F1,    KC_F2,      KC_F3,      KC_F4,           KC_F5,          KC_F6,            /**/               KC_F7,     KC_F8,          KC_F9,      KC_F10,     KC_F11,         ____,
+        KC_PTSC,  LG_T(KC_1), LA_T(KC_2), LS_T(KC_3),      LC_T(KC_4),     KC_5,             /**/               KC_6,      LC_T(KC_7),     LS_T(KC_8), LA_T(KC_9), LG_T(KC_0),     KC_MINUS,
+        ____,     C_LEFT,     C_DOWN,     C_UP,            C_RIGHT,        ____,             /**/               ____,      KC_LEFT,        KC_DOWN,    KC_UP,      KC_RIGHT,       M_DEREF,
+                                                           ____,           ____,    ____,    /**/   ____,       ____,      ____
+    ),
 
-    [LAYER_RAISE] = {
-        {____,      KC_BRKT_L,  KC_BRKT_R,  LS(KC_BRKT_L),  LS(KC_BRKT_R),  ____,       /* split */      ____,       LS(KC_BSLS),   KC_BSLS,    KC_EQ,      LS(KC_EQ),      KC_DEL},
-        {____,      S_1,        S_2,        S_3,            S_4,            S_5,        /* split */      S_6,        S_7,           S_8,        S_9,        S_0,            S_MINUS},
-        {____,      ____,       ____,       ____,           ____,           ____,       /* split */      ____,       KC_LEFT,       KC_DOWN,    KC_UP,      KC_RIGHT,       ____},
-        {KC_CAPS,   ____,       ____,       ____,           ____,           ____,       /* split */      ____,       ____,          ____,       ____,       ____,           ____}
-    },
+    [LAYER_RAISE] = LAYOUT_HEX2A(
+        ____,      KC_BRKT_L,  KC_BRKT_R,  LS(KC_BRKT_L),  LS(KC_BRKT_R),  ____,             /**/               ____,       LS(KC_BSLS),   KC_BSLS,    KC_EQ,      LS(KC_EQ),      KC_DEL,
+        ____,      S_1,        S_2,        S_3,            S_4,            S_5,              /**/               S_6,        S_7,           S_8,        S_9,        S_0,            S_MINUS,
+        ____,      ____,       ____,       ____,           ____,           ____,             /**/               ____,       KC_LEFT,       KC_DOWN,    KC_UP,      KC_RIGHT,       ____,
+                                                           ____,           ____,    ____,    /**/   ____,       ____,       ____
+    ),
 
-    [LAYER_FN] = {
-        {BL_RST,    KC_POWER,   ____,       ____,           ____,           ____,       /* split */     ____,       ____,           KC_BGT_DN,  KC_BGT_UP,  ____,           ____},
-        {____,      ____,       ____,       ____,           RUN_BUILD,      ____,       /* split */     ____,       RUN_TESTS,      KC_VOL_DN,  KC_VOL_UP,  KC_MUTE,        ____},
-        {____,      TOG_L0,     TOG_L1,     TOG_L2,         TOG_L3,         ____,       /* split */     ____,       ____,           L_B_DN,     L_B_UP,     ____,           ____},
-        {____,      ____,       ____,       ____,           ____,           ____,       /* split */     ____,       ____,           ____,       ____,       ____,           ____}
-    }
+    [LAYER_FN] = LAYOUT_HEX2A(
+        BL_RST,    KC_POWER,   ____,       ____,           ____,           ____,             /**/               ____,       ____,           KC_BGT_DN,  KC_BGT_UP,  ____,           ____,
+        ____,      ____,       ____,       ____,           RUN_BUILD,      ____,             /**/               ____,       RUN_TESTS,      KC_VOL_DN,  KC_VOL_UP,  KC_MUTE,        ____,
+        ____,      TOG_L0,     TOG_L1,     TOG_L2,         TOG_L3,         ____,             /**/               ____,       ____,           L_B_DN,     L_B_UP,     ____,           ____,
+                                                           ____,           ____,    ____,    /**/   ____,       ____,       ____
+    )
 };
 
 // private functions

@@ -26,6 +26,9 @@ add_executable(usb_keyboard
         src/leds.c
         )
 
+pico_enable_stdio_uart(usb_keyboard 0)
+pico_enable_stdio_usb(usb_keyboard 0)
+
 target_link_libraries(usb_keyboard PRIVATE pico_stdlib hardware_resets hardware_irq hardware_pio)
 
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/generated)

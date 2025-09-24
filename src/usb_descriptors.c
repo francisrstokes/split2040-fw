@@ -81,7 +81,7 @@ const struct usb_device_descriptor device_descriptor = {
     .bDeviceProtocol = 0,      // No protocol
     .bMaxPacketSize0 = 64,     // Max packet size for ep0
     .idVendor        = 0x7083, // Your vendor id
-    .idProduct       = 0x0002, // Your product ID
+    .idProduct       = 0x0003, // Your product ID
     .bcdDevice       = 0,      // No device revision number
     .iManufacturer   = 1,      // Manufacturer string index
     .iProduct        = 2,      // Product string index
@@ -141,8 +141,8 @@ const uint8_t lang_descriptor[] = {
 };
 
 const unsigned char* descriptor_strings[] = {
-    (unsigned char*) "Francis Stokes", // Vendor
-    (unsigned char*) "split2040-fw"    // Product
+    (unsigned char*) "Francis Stokes",          // Vendor
+    (unsigned char*) "Hex-2a Split Keyboard"    // Product
 };
 
 // public functions
