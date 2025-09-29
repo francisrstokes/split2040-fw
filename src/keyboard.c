@@ -123,14 +123,14 @@ static const keymap_entry_t keymap[LAYER_MAX][MATRIX_ROWS][MATRIX_COLS] = {
         KC_F1,    KC_F2,      KC_F3,      KC_F4,           KC_F5,          KC_F6,            /**/               KC_F7,     KC_F8,          KC_F9,      KC_F10,     KC_F11,         ____,
         KC_PTSC,  LG_T(KC_1), LA_T(KC_2), LS_T(KC_3),      LC_T(KC_4),     KC_5,             /**/               KC_6,      LC_T(KC_7),     LS_T(KC_8), LA_T(KC_9), LG_T(KC_0),     KC_MINUS,
         ____,     C_LEFT,     C_DOWN,     C_UP,            C_RIGHT,        ____,             /**/               ____,      KC_LEFT,        KC_DOWN,    KC_UP,      KC_RIGHT,       M_DEREF,
-                                                           ____,           ____,    ____,    /**/   ____,       ____,      ____
+                                                           ____,           ____,    ____,    /**/   ____,       FN,        ____
     ),
 
     [LAYER_RAISE] = LAYOUT_HEX2A(
         ____,      KC_BRKT_L,  KC_BRKT_R,  LS(KC_BRKT_L),  LS(KC_BRKT_R),  ____,             /**/               ____,       LS(KC_BSLS),   KC_BSLS,    KC_EQ,      LS(KC_EQ),      KC_DEL,
         ____,      S_1,        S_2,        S_3,            S_4,            S_5,              /**/               S_6,        S_7,           S_8,        S_9,        S_0,            S_MINUS,
         ____,      ____,       ____,       ____,           ____,           ____,             /**/               ____,       KC_LEFT,       KC_DOWN,    KC_UP,      KC_RIGHT,       ____,
-                                                           ____,           ____,    ____,    /**/   ____,       ____,       ____
+                                                           ____,           RAISE,   ____,    /**/   ____,       ____,       ____
     ),
 
     [LAYER_FN] = LAYOUT_HEX2A(
@@ -335,10 +335,6 @@ void keyboard_post_scan(void) {
             keyboard_handle_remaining_presses();
         }
     }
-
-    // Show which modifiers are held on LEDs 1 & 2
-    leds_set_color(1, LED1_R(keyboard_hid_report_ref[0]), LED1_G(keyboard_hid_report_ref[0]), LED1_B(keyboard_hid_report_ref[0]));
-    leds_set_color(2, LED2_W(keyboard_hid_report_ref[0]), LED2_W(keyboard_hid_report_ref[0]), LED2_W(keyboard_hid_report_ref[0]));
 }
 
 keymap_entry_t keyboard_resolve_key(uint row, uint col) {
@@ -369,5 +365,5 @@ uint8_t keyboard_get_current_layer(void) {
 }
 
 void keyboard_on_led_status_report(uint8_t led_status) {
-    leds_set_color(3, LED3_W(led_status), LED3_W(led_status), LED3_W(led_status));
+    leds_set_color(1, LED3_W(led_status), LED3_W(led_status), LED3_W(led_status));
 }

@@ -10,7 +10,7 @@
 #include "keyboard.h"
 
 // defines
-#define NUM_LEDS  (4)
+#define NUM_LEDS  (2)
 
 // typedefs
 typedef struct leds_state_t {
