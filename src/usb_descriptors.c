@@ -31,9 +31,9 @@ static const uint8_t hid_boot_keyboard_report_descriptor[] = {
         HID_REPORT_COUNT(6),
         HID_REPORT_SIZE(8),
         HID_USAGE_MIN(0),
-        HID_USAGE_MAX_N(255, 2),
+        HID_USAGE_MAX(255),
         HID_LOGICAL_MIN(0),
-        HID_LOGICAL_MAX_N( 255, 2),
+        HID_LOGICAL_MAX(255),
         HID_INPUT(HID_DATA | HID_ARRAY | HID_ABSOLUTE),
 
     // 5 bit led status

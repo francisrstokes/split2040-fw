@@ -23,8 +23,14 @@ typedef struct leds_state_t {
 
 // public functions
 void leds_set_color(uint led_index, uint8_t r, uint8_t g, uint8_t b);
+void leds_set_r(uint led_index, uint8_t value);
+void leds_set_g(uint led_index, uint8_t value);
+void leds_set_b(uint led_index, uint8_t value);
+
 void leds_write(void);
 void leds_init(void);
 void leds_brightness_up(void);
 void leds_brightness_down(void);
 void leds_toggle_led_enabled(uint led_index);
+
+void leds_write_test_led(bool on);

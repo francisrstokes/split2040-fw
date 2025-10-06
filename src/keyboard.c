@@ -71,13 +71,17 @@
 #define LED1_B(mods)            ((mods & (LC_BIT | RC_BIT)) ? 255 : 0)
 #define LED2_W(mods)            ((mods & (LG_BIT | RG_BIT)) ? 255 : 0)
 #define LED3_W(led_status)      ((led_status & (1 << 1)) ? 255 : 0)
+#define SNAKE_LED(enabled)      ((enabled) ? 255 : 0)
 
 #define RUN_BUILD               LC(LS(KC_B))
 #define RUN_TESTS               LC(LA(KC_T))
 
+#define SNAKE                   KBC_TOGGLE_SNAKE_MODE
+
 // statics
 static uint8_t* keyboard_hid_report_ref = NULL;
 static uint8_t report_press_count = 0;
+static bool snake_mode_active = false;
 
 static combo_t combos[NUM_COMBO_SLOTS] = {
     [0]  = COMBO2(KC_E,         KC_R,           LS(KC_9)),       // (
@@ -89,8 +93,8 @@ static combo_t combos[NUM_COMBO_SLOTS] = {
     [6]  = COMBO2(KC_W,         KC_E,           KC_TAB),         // Tab
     [7]  = COMBO2(KC_I,         KC_O,           KC_TAB),         // Tab
     [8]  = COMBO2(KC_Q,         KC_W,           KC_CAPS),        // Caps Lock
-    [9]  = COMBO2(LOWER,        RAISE,          FN),             // FN layer
-    [10] = COMBO2(KC_P,         KC_BSPC,        M_DEREF),        // "->"
+    [9]  = COMBO2(KC_P,         KC_BSPC,        M_DEREF),        // "->"
+    [10] = COMBO_UNUSED,
     [11] = COMBO_UNUSED,
     [12] = COMBO_UNUSED,
     [13] = COMBO_UNUSED,
@@ -130,7 +134,7 @@ static const keymap_entry_t keymap[LAYER_MAX][MATRIX_ROWS][MATRIX_COLS] = {
         ____,      KC_BRKT_L,  KC_BRKT_R,  LS(KC_BRKT_L),  LS(KC_BRKT_R),  ____,             /**/               ____,       LS(KC_BSLS),   KC_BSLS,    KC_EQ,      LS(KC_EQ),      KC_DEL,
         ____,      S_1,        S_2,        S_3,            S_4,            S_5,              /**/               S_6,        S_7,           S_8,        S_9,        S_0,            S_MINUS,
         ____,      ____,       ____,       ____,           ____,           ____,             /**/               ____,       KC_LEFT,       KC_DOWN,    KC_UP,      KC_RIGHT,       ____,
-                                                           ____,           RAISE,   ____,    /**/   ____,       ____,       ____
+                                                           ____,           FN,      ____,    /**/   ____,       ____,       ____
     ),
 
     [LAYER_FN] = LAYOUT_HEX2A(
@@ -143,7 +147,7 @@ static const keymap_entry_t keymap[LAYER_MAX][MATRIX_ROWS][MATRIX_COLS] = {
     [LAYER_SPLIT] = LAYOUT_HEX2A(
         ____,      ____,       ____,       ____,           ____,           ____,             /**/               ____,       ____,           ____,       ____,       ____,           ____,
         ____,      ____,       ____,       ____,           ____,           ____,             /**/               ____,       KC_BSPC,        KC_DEL,     ____,       ____,           ____,
-        ____,      ____,       LC(KC_X),   LC(KC_C),       LC(KC_V),       ____,             /**/               ____,       KC_PD,          KC_PU,      KC_END,     KC_HOME,        KC_CAPS,
+        SNAKE,     ____,       LC(KC_X),   LC(KC_C),       LC(KC_V),       ____,             /**/               ____,       KC_PD,          KC_PU,      KC_END,     KC_HOME,        KC_CAPS,
                                                            ____,           ____,    ____,    /**/   ____,       ____,       ____
     )
 };
@@ -152,13 +156,18 @@ static const keymap_entry_t keymap[LAYER_MAX][MATRIX_ROWS][MATRIX_COLS] = {
 static bool kbc_on_key_press(uint row, uint col, keymap_entry_t key) {
     if ((key & ENTRY_TYPE_MASK) == ENTRY_TYPE_KBC) {
         switch (key & KBC_INDEX_MASK) {
-            case KBC_COM_BRIGHTNESS_DOWN:   leds_brightness_down();     matrix_suppress_key_until_release(row, col);    return true;
-            case KBC_COM_BRIGHTNESS_UP:     leds_brightness_up();       matrix_suppress_key_until_release(row, col);    return true;
-            case KBC_COM_LED0_TOGGLE:       leds_toggle_led_enabled(0); matrix_suppress_key_until_release(row, col);    return true;
-            case KBC_COM_LED1_TOGGLE:       leds_toggle_led_enabled(1); matrix_suppress_key_until_release(row, col);    return true;
-            case KBC_COM_LED2_TOGGLE:       leds_toggle_led_enabled(2); matrix_suppress_key_until_release(row, col);    return true;
-            case KBC_COM_LED3_TOGGLE:       leds_toggle_led_enabled(3); matrix_suppress_key_until_release(row, col);    return true;
-            case KBC_COM_RESET_TO_BL:       reset_usb_boot(0, 0);                                                       return true;
+            case KBC_COM_BRIGHTNESS_DOWN:       leds_brightness_down();     matrix_suppress_key_until_release(row, col);    return true;
+            case KBC_COM_BRIGHTNESS_UP:         leds_brightness_up();       matrix_suppress_key_until_release(row, col);    return true;
+            case KBC_COM_LED0_TOGGLE:           leds_toggle_led_enabled(0); matrix_suppress_key_until_release(row, col);    return true;
+            case KBC_COM_LED1_TOGGLE:           leds_toggle_led_enabled(1); matrix_suppress_key_until_release(row, col);    return true;
+            case KBC_COM_LED2_TOGGLE:           leds_toggle_led_enabled(2); matrix_suppress_key_until_release(row, col);    return true;
+            case KBC_COM_LED3_TOGGLE:           leds_toggle_led_enabled(3); matrix_suppress_key_until_release(row, col);    return true;
+            case KBC_COM_RESET_TO_BL:           reset_usb_boot(0, 0);                                                       return true;
+            case KBC_COM_TOGGLE_SNAKE_MODE: {
+                snake_mode_active = !snake_mode_active;
+                leds_set_g(1, SNAKE_LED(snake_mode_active));
+                return true;
+            }
         }
     }
 
@@ -233,6 +242,16 @@ static void keyboard_bootmagic(void) {
     gpio_put(matrix_get_col_gpio(BOOTMAGIC_COL), false);
 }
 
+static bool keyboard_before_send_key(keymap_entry_t* key) {
+    if (snake_mode_active) {
+        if ((KEY_MODS(*key) == 0) && ((*key & KC_MASK) == KC_SPC)) {
+            // Send an underscore instead of a space
+            *key = LS(KC_MINUS);
+        }
+    }
+    return true;
+}
+
 // public functions
 void keyboard_init(uint8_t* keyboard_hid_report) {
     keyboard_hid_report_ref = keyboard_hid_report;
@@ -263,6 +282,8 @@ bool keyboard_send_key(keymap_entry_t key) {
     }
 
     if (report_press_count >= 6) return false;
+
+    if (!keyboard_before_send_key(&key)) return false;
 
     uint8_t kc_value = key & KC_MASK;
 
@@ -365,5 +386,7 @@ uint8_t keyboard_get_current_layer(void) {
 }
 
 void keyboard_on_led_status_report(uint8_t led_status) {
-    leds_set_color(1, LED3_W(led_status), LED3_W(led_status), LED3_W(led_status));
+    // leds_set_cfolor(1, LED3_W(led_status), LED3_W(led_status), LED3_W(led_status));
+    leds_set_r(1, LED3_W(led_status));
+    leds_set_b(1, LED3_W(led_status));
 }

@@ -88,6 +88,7 @@ typedef uint32_t keymap_entry_t;
 #define KBC_COM_LED2_TOGGLE         (0x0004)
 #define KBC_COM_LED3_TOGGLE         (0x0005)
 #define KBC_COM_RESET_TO_BL         (0x0006)
+#define KBC_COM_TOGGLE_SNAKE_MODE   (0x0007)
 
 #define KBC(command)                (ENTRY_TYPE_KBC | command)
 #define KBC_BRIGHTNESS_UP           KBC(KBC_COM_BRIGHTNESS_UP)
@@ -97,6 +98,7 @@ typedef uint32_t keymap_entry_t;
 #define KBC_LED2_TOGGLE             KBC(KBC_COM_LED2_TOGGLE)
 #define KBC_LED3_TOGGLE             KBC(KBC_COM_LED3_TOGGLE)
 #define KBC_RESET_TO_BL             KBC(KBC_COM_RESET_TO_BL)
+#define KBC_TOGGLE_SNAKE_MODE       KBC(KBC_COM_TOGGLE_SNAKE_MODE)
 #define KBC_INDEX_MASK              (0xffff)
 
 // key definitions
