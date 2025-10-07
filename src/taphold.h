@@ -10,10 +10,6 @@
 #include "ll_alloc.h"
 #include "keyboard.h"
 
-// defines
-#define TAP_HOLD_DELAY_MS           (200)
-#define MAX_CONCURRENT_TAPHOLDS     (8)
-
 // typedefs
 typedef struct taphold_data_t {
     uint8_t row;

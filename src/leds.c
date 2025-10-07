@@ -9,14 +9,6 @@
                              ((uint32_t) (leds_state.leds_out[i][1]) << 16) | \
                              (uint32_t) (leds_state.leds_out[i][2]))
 
-#define BRIGHTNESS_DELTA    (16)
-
-// The LEDs are wired right to left on this board. Use this macro at the edge (just before shifting out) to keep everything else
-// thinking that LED 0 is on the left as expected
-#define BODGE_INDEX(index)  (NUM_LEDS - index - 1)
-
-#define TEST_LED            (22)
-
 // statics
 static leds_state_t leds_state = {
     .leds = { 0 },
@@ -91,10 +83,6 @@ void leds_write(void) {
 
 void leds_init(void) {
     ws2812_init();
-
-    gpio_init(TEST_LED);
-    gpio_set_dir(TEST_LED, true);
-    gpio_put(TEST_LED, false);
 }
 
 void leds_brightness_up(void) {
@@ -124,8 +112,4 @@ void leds_brightness_down(void) {
 void leds_toggle_led_enabled(uint led_index) {
     leds_state.mask ^= (1 << led_index);
     leds_compute_brightness_adjusted_color(led_index);
-}
-
-void leds_write_test_led(bool on) {
-    gpio_put(TEST_LED, on);
 }

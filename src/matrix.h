@@ -9,11 +9,6 @@
 #include "pico/types.h"
 #include "hid.h"
 
-// defines
-#define MATRIX_SCAN_INTERVAL_MS     (10)
-#define MATRIX_ROWS                 (4)
-#define MATRIX_COLS                 (12)
-
 // public functions
 void matrix_init(void);
 void matrix_scan(void);

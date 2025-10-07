@@ -11,9 +11,6 @@
 
 #include "pico/stdlib.h"
 
-// Define
-#define MATRIX_SETTLE_ITERATIONS (50)
-
 // statics
 static uint32_t prev_pressed_bitmap[MATRIX_ROWS] = {0};
 static uint32_t pressed_bitmap[MATRIX_ROWS] = {0};
@@ -22,8 +19,9 @@ static uint32_t pressed_this_scan_bitmap[MATRIX_ROWS] = {0};
 static uint32_t released_this_scan_bitmap[MATRIX_ROWS] = {0};
 static uint32_t suppressed_until_release[MATRIX_ROWS] = {0};
 
-static uint matrix_cols[MATRIX_COLS] = { 21, 20, 19, 18, 17, 16,        11, 12, 9, 10, 7, 8 };
-static uint matrix_rows[MATRIX_ROWS] = { 2, 3, 4, 5 };
+// externs
+extern uint matrix_cols[MATRIX_COLS];
+extern uint matrix_rows[MATRIX_ROWS];
 
 // private functions
 static inline void matrix_settle_delay(void) {

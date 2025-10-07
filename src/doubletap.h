@@ -10,10 +10,6 @@
 #include "ll_alloc.h"
 #include "keyboard.h"
 
-// defines
-#define DOUBLE_TAP_DELAY_MS         (200)
-#define MAX_CONCURRENT_DOUBLE_TAPS  (8)
-
 // typedefs
 typedef enum dt_state_t {
     dt_state_wait_first_release = 0,
