@@ -25,13 +25,6 @@ static uint32_t suppressed_until_release[MATRIX_ROWS] = {0};
 static uint matrix_cols[MATRIX_COLS] = { 21, 20, 19, 18, 17, 16,        11, 12, 9, 10, 7, 8 };
 static uint matrix_rows[MATRIX_ROWS] = { 2, 3, 4, 5 };
 
-static const uint32_t matrix_row_masks[MATRIX_ROWS] = {
-    0x1fff, // All 12 keys are valid
-    0x1fff, // All 12 keys are valid
-    0x1fff, // All 12 keys are valid
-    0x01f8, // The middle 6 keys are valid
-};
-
 // private functions
 static inline void matrix_settle_delay(void) {
     for (uint i = 0; i < MATRIX_SETTLE_ITERATIONS; i++) {
@@ -77,7 +70,6 @@ void matrix_scan(void) {
             if (gpio_get(matrix_rows[row])) {
                 pressed_bitmap[row] |= (1 << col);
             }
-            pressed_bitmap[row] &= matrix_row_masks[row];
         }
 
         // Deassert the column
