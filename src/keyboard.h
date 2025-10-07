@@ -9,6 +9,8 @@
 #include "pico/types.h"
 #include "hid.h"
 
+#include "machines/machine.h"
+
 // typedefs
 typedef uint32_t keymap_entry_t;
 
@@ -22,8 +24,6 @@ typedef uint32_t keymap_entry_t;
 */
 
 // defines
-#define NUM_LAYERS          (4)
-
 #define ENTRY_TYPE_MASK     (0xf0000000)
 #define ENTRY_ARG4_MASK     (0x0f000000)
 #define ENTRY_ARG4_SHIFT    (24)
@@ -82,24 +82,6 @@ typedef uint32_t keymap_entry_t;
 
 #define MACRO(index)                (ENTRY_TYPE_MACRO | index)
 #define MACRO_INDEX_MASK            (0xffff)
-
-#define KBC_COM_BRIGHTNESS_UP       (0x0000)
-#define KBC_COM_BRIGHTNESS_DOWN     (0x0001)
-#define KBC_COM_LED0_TOGGLE         (0x0002)
-#define KBC_COM_LED1_TOGGLE         (0x0003)
-#define KBC_COM_LED2_TOGGLE         (0x0004)
-#define KBC_COM_LED3_TOGGLE         (0x0005)
-#define KBC_COM_RESET_TO_BL         (0x0006)
-
-#define KBC(command)                (ENTRY_TYPE_KBC | command)
-#define KBC_BRIGHTNESS_UP           KBC(KBC_COM_BRIGHTNESS_UP)
-#define KBC_BRIGHTNESS_DOWN         KBC(KBC_COM_BRIGHTNESS_DOWN)
-#define KBC_LED0_TOGGLE             KBC(KBC_COM_LED0_TOGGLE)
-#define KBC_LED1_TOGGLE             KBC(KBC_COM_LED1_TOGGLE)
-#define KBC_LED2_TOGGLE             KBC(KBC_COM_LED2_TOGGLE)
-#define KBC_LED3_TOGGLE             KBC(KBC_COM_LED3_TOGGLE)
-#define KBC_RESET_TO_BL             KBC(KBC_COM_RESET_TO_BL)
-#define KBC_INDEX_MASK              (0xffff)
 
 // key definitions
 #define KC_NONE     KEY(HID_KEY_NONE)
@@ -211,3 +193,10 @@ keymap_entry_t keyboard_resolve_key(uint row, uint col);
 keymap_entry_t keyboard_resolve_key_on_layer(uint row, uint col, uint layer);
 uint8_t keyboard_get_current_layer(void);
 void keyboard_on_led_status_report(uint8_t led_status);
+
+// weak functions to be overridden by specific keyboards
+bool kbc_on_key_press(uint row, uint col, keymap_entry_t key);
+bool kbc_on_key_release(uint row, uint col, keymap_entry_t key);
+bool kbc_on_virtual_key(keymap_entry_t key);
+bool keyboard_before_send_key(keymap_entry_t* key);
+void keyboard_on_scan_complete(const uint8_t* hid_report);

@@ -9,10 +9,11 @@
 #include "pico/types.h"
 
 // defines
-#define WHITE   255, 255, 255
-#define CYAN    0,   255, 255
-#define ORANGE  255, 200, 0
-#define MAGENTA 255, 0,   255
+#define WHITE       255, 255, 255
+#define CYAN        0,   255, 255
+#define ORANGE      255, 200, 0
+#define MAGENTA     255, 0,   255
+#define AQUAMARINE  0,   255, 127
 
 // typedefs
 

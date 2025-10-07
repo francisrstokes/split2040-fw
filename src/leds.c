@@ -2,16 +2,12 @@
 #include "color.h"
 #include "ws2812.h"
 
+#include "pico/stdlib.h"
+
 // defines
 #define LED_TO_U32(i)       (((uint32_t) (leds_state.leds_out[i][0]) << 8)  | \
                              ((uint32_t) (leds_state.leds_out[i][1]) << 16) | \
                              (uint32_t) (leds_state.leds_out[i][2]))
-
-#define BRIGHTNESS_DELTA    (16)
-
-// The LEDs are wired right to left on this board. Use this macro at the edge (just before shifting out) to keep everything else
-// thinking that LED 0 is on the left as expected
-#define BODGE_INDEX(index)  (NUM_LEDS - index - 1)
 
 // statics
 static leds_state_t leds_state = {
@@ -59,6 +55,21 @@ void leds_set_color(uint led_index, uint8_t r, uint8_t g, uint8_t b) {
 
         leds_compute_brightness_adjusted_color(led_index);
     }
+}
+
+void leds_set_r(uint led_index, uint8_t value) {
+    if (led_index >= NUM_LEDS) return;
+    leds_set_color(led_index, value, leds_state.leds[led_index][1], leds_state.leds[led_index][2]);
+}
+
+void leds_set_g(uint led_index, uint8_t value) {
+    if (led_index >= NUM_LEDS) return;
+    leds_set_color(led_index, leds_state.leds[led_index][0], value, leds_state.leds[led_index][2]);
+}
+
+void leds_set_b(uint led_index, uint8_t value) {
+    if (led_index >= NUM_LEDS) return;
+    leds_set_color(led_index, leds_state.leds[led_index][0], leds_state.leds[led_index][1], value);
 }
 
 void leds_write(void) {

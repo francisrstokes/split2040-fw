@@ -1,5 +1,8 @@
 cmake_minimum_required(VERSION 3.13)
 
+# Keyboard to build:
+add_definitions(-DKEYBOARD_HEX2A)
+
 # initialize the SDK based on PICO_SDK_PATH
 # note: this must happen before project()
 include(pico_sdk_import.cmake)
@@ -24,7 +27,13 @@ add_executable(usb_keyboard
         src/ws2812.c
         src/color.c
         src/leds.c
+
+        # Specific keyboards
+        src/machines/hex2a/machine.c
         )
+
+pico_enable_stdio_uart(usb_keyboard 0)
+pico_enable_stdio_usb(usb_keyboard 0)
 
 target_link_libraries(usb_keyboard PRIVATE pico_stdlib hardware_resets hardware_irq hardware_pio)
 

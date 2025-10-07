@@ -19,150 +19,16 @@
 #include "pico/stdlib.h"
 #include "pico/bootrom.h"
 
-// options/configuration
-#define BOOTMAGIC_COL           (0)
-#define BOOTMAGIC_ROW           (0)
-
-// regular defines
-#define ____                    KC_TRANS
-
-#define LOWER                   MO(LAYER_LOWER)
-#define RAISE                   MO(LAYER_RAISE)
-#define FN                      MO(LAYER_FN)
-
-#define GRV_ESC                 TAP_HOLD(KC_ESC, KC_GRAVE, 0x00)
-
-#define C_LEFT                  LC(KC_LEFT)
-#define C_DOWN                  LC(KC_DOWN)
-#define C_UP                    LC(KC_UP)
-#define C_RIGHT                 LC(KC_RIGHT)
-
-#define S_1                     LG_T(LS(KC_1))
-#define S_2                     LA_T(LS(KC_2))
-#define S_3                     LS_T(LS(KC_3))
-#define S_4                     LC_T(LS(KC_4))
-#define S_5                     LS(KC_5)
-#define S_6                     LS(KC_6)
-#define S_7                     LC_T(LS(KC_7))
-#define S_8                     LS_T(LS(KC_8))
-#define S_9                     LA_T(LS(KC_9))
-#define S_0                     LG_T(LS(KC_0))
-#define S_MINUS                 LS(KC_MINUS)
-
-#define SPC_ENT                 DT(KC_SPC, KC_ENTER, 0x0)
-#define HOME_PU                 DT(KC_HOME, KC_PU, 0x0)
-#define END_PD                  DT(KC_END, KC_PD, 0x0)
-
-#define M_DEREF                 MACRO(0)
-
-#define BL_RST                  KBC_RESET_TO_BL
-#define TOG_L0                  KBC_LED0_TOGGLE
-#define TOG_L1                  KBC_LED1_TOGGLE
-#define TOG_L2                  KBC_LED2_TOGGLE
-#define TOG_L3                  KBC_LED3_TOGGLE
-#define L_B_UP                  KBC_BRIGHTNESS_UP
-#define L_B_DN                  KBC_BRIGHTNESS_DOWN
-
-#define LED1_R(mods)            ((mods & (LA_BIT | RA_BIT)) ? 255 : 0)
-#define LED1_G(mods)            ((mods & (LS_BIT | RS_BIT)) ? 255 : 0)
-#define LED1_B(mods)            ((mods & (LC_BIT | RC_BIT)) ? 255 : 0)
-#define LED2_W(mods)            ((mods & (LG_BIT | RG_BIT)) ? 255 : 0)
-#define LED3_W(led_status)      ((led_status & (1 << 1)) ? 255 : 0)
-
-#define RUN_BUILD               LC(LS(KC_B))
-#define RUN_TESTS               LC(LA(KC_T))
-
 // statics
 static uint8_t* keyboard_hid_report_ref = NULL;
 static uint8_t report_press_count = 0;
 
-static combo_t combos[NUM_COMBO_SLOTS] = {
-    [0]  = COMBO2(KC_E,         KC_R,           LS(KC_9)),       // (
-    [1]  = COMBO2(KC_U,         KC_I,           LS(KC_0)),       // )
-    [2]  = COMBO2(KC_C,         KC_V,           KC_BRKT_L),      // [
-    [3]  = COMBO2(KC_M,         KC_COMMA,       KC_BRKT_R),      // ]
-    [4]  = COMBO2(KC_V,         KC_B,           LS(KC_BRKT_L)),  // {
-    [5]  = COMBO2(KC_N,         KC_M,           LS(KC_BRKT_R)),  // }
-    [6]  = COMBO2(KC_W,         KC_E,           KC_TAB),         // Tab
-    [7]  = COMBO2(KC_I,         KC_O,           KC_TAB),         // Tab
-    [8]  = COMBO2(KC_Q,         KC_W,           KC_CAPS),        // Caps Lock
-    [9]  = COMBO2(LOWER,        RAISE,          FN),             // FN layer
-    [10] = COMBO2(KC_P,         KC_BSPC,        M_DEREF),        // "->"
-    [11] = COMBO_UNUSED,
-    [12] = COMBO_UNUSED,
-    [13] = COMBO_UNUSED,
-    [14] = COMBO_UNUSED,
-    [15] = COMBO_UNUSED,
-};
-
-const char arrow_deref[] = "->";
-
-static macro_t macros[NUM_MACRO_SLOTS] = {
-    [0] = SEND_STRING(arrow_deref, sizeof(arrow_deref)),
-    [1] = MACRO_UNUSED,
-    [2] = MACRO_UNUSED,
-    [3] = MACRO_UNUSED,
-    [4] = MACRO_UNUSED,
-    [5] = MACRO_UNUSED,
-    [6] = MACRO_UNUSED,
-    [7] = MACRO_UNUSED
-};
-
-static const keymap_entry_t keymap[NUM_LAYERS][MATRIX_ROWS][MATRIX_COLS] = {
-    [LAYER_QWERTY] = {
-        {GRV_ESC,   KC_Q,       KC_W,       KC_E,           KC_R,           KC_T,       /* split */     KC_Y,       KC_U,           KC_I,       KC_O,       KC_P,           KC_BSPC},
-        {KC_TAB,    LG_T(KC_A), LA_T(KC_S), LS_T(KC_D),     LC_T(KC_F),     KC_G,       /* split */     KC_H,       LC_T(KC_J),     LS_T(KC_K), LA_T(KC_L), LG_T(KC_SCLN),  KC_QUOTE},
-        {KC_LSFT,   KC_Z,       KC_X,       KC_C,           KC_V,           KC_B,       /* split */     KC_N,       KC_M,           KC_COMMA,   KC_DOT,     KC_SLASH,       KC_ENTER},
-        {KC_LCTL,   KC_HOME,    KC_LALT,    KC_LGUI,        LOWER,          SPC_ENT,    /* split */     KC_SPC,     RAISE,          END_PD,     HOME_PU,    KC_RSFT,        KC_RCTL}
-    },
-
-    [LAYER_LOWER] = {
-        {KC_F1,    KC_F2,      KC_F3,      KC_F4,           KC_F5,          KC_F6,       /* split */     KC_F7,     KC_F8,          KC_F9,      KC_F10,     KC_F11,         ____},
-        {KC_PTSC,  LG_T(KC_1), LA_T(KC_2), LS_T(KC_3),      LC_T(KC_4),     KC_5,        /* split */     KC_6,      LC_T(KC_7),     LS_T(KC_8), LA_T(KC_9), LG_T(KC_0),     KC_MINUS},
-        {____,     C_LEFT,     C_DOWN,     C_UP,            C_RIGHT,        ____,        /* split */     ____,      KC_LEFT,        KC_DOWN,    KC_UP,      KC_RIGHT,       M_DEREF},
-        {____,     ____,       ____,       ____,            ____,           ____,        /* split */     ____,       ____,          ____,       ____,       ____,           ____}
-    },
-
-    [LAYER_RAISE] = {
-        {____,      KC_BRKT_L,  KC_BRKT_R,  LS(KC_BRKT_L),  LS(KC_BRKT_R),  ____,       /* split */      ____,       LS(KC_BSLS),   KC_BSLS,    KC_EQ,      LS(KC_EQ),      KC_DEL},
-        {____,      S_1,        S_2,        S_3,            S_4,            S_5,        /* split */      S_6,        S_7,           S_8,        S_9,        S_0,            S_MINUS},
-        {____,      ____,       ____,       ____,           ____,           ____,       /* split */      ____,       KC_LEFT,       KC_DOWN,    KC_UP,      KC_RIGHT,       ____},
-        {KC_CAPS,   ____,       ____,       ____,           ____,           ____,       /* split */      ____,       ____,          ____,       ____,       ____,           ____}
-    },
-
-    [LAYER_FN] = {
-        {BL_RST,    KC_POWER,   ____,       ____,           ____,           ____,       /* split */     ____,       ____,           KC_BGT_DN,  KC_BGT_UP,  ____,           ____},
-        {____,      ____,       ____,       ____,           RUN_BUILD,      ____,       /* split */     ____,       RUN_TESTS,      KC_VOL_DN,  KC_VOL_UP,  KC_MUTE,        ____},
-        {____,      TOG_L0,     TOG_L1,     TOG_L2,         TOG_L3,         ____,       /* split */     ____,       ____,           L_B_DN,     L_B_UP,     ____,           ____},
-        {____,      ____,       ____,       ____,           ____,           ____,       /* split */     ____,       ____,           ____,       ____,       ____,           ____}
-    }
-};
+// externs
+extern combo_t combos[NUM_COMBO_SLOTS];
+extern macro_t macros[NUM_MACRO_SLOTS];
+extern const keymap_entry_t keymap[LAYER_MAX][MATRIX_ROWS][MATRIX_COLS];
 
 // private functions
-static bool kbc_on_key_press(uint row, uint col, keymap_entry_t key) {
-    if ((key & ENTRY_TYPE_MASK) == ENTRY_TYPE_KBC) {
-        switch (key & KBC_INDEX_MASK) {
-            case KBC_COM_BRIGHTNESS_DOWN:   leds_brightness_down();     matrix_suppress_key_until_release(row, col);    return true;
-            case KBC_COM_BRIGHTNESS_UP:     leds_brightness_up();       matrix_suppress_key_until_release(row, col);    return true;
-            case KBC_COM_LED0_TOGGLE:       leds_toggle_led_enabled(0); matrix_suppress_key_until_release(row, col);    return true;
-            case KBC_COM_LED1_TOGGLE:       leds_toggle_led_enabled(1); matrix_suppress_key_until_release(row, col);    return true;
-            case KBC_COM_LED2_TOGGLE:       leds_toggle_led_enabled(2); matrix_suppress_key_until_release(row, col);    return true;
-            case KBC_COM_LED3_TOGGLE:       leds_toggle_led_enabled(3); matrix_suppress_key_until_release(row, col);    return true;
-            case KBC_COM_RESET_TO_BL:       reset_usb_boot(0, 0);                                                       return true;
-        }
-    }
-
-    return false;
-}
-
-static bool kbc_on_key_release(uint row, uint col, keymap_entry_t key) {
-    return false;
-}
-
-static bool kbc_on_virtual_key(keymap_entry_t key) {
-    kbc_on_key_press(0xff, 0xff, key);
-}
-
 static void keyboard_handle_remaining_presses(void) {
     keymap_entry_t key = KC_NONE;
 
@@ -254,6 +120,8 @@ bool keyboard_send_key(keymap_entry_t key) {
 
     if (report_press_count >= 6) return false;
 
+    if (!keyboard_before_send_key(&key)) return false;
+
     uint8_t kc_value = key & KC_MASK;
 
     // All keys can now encode being held together with all possible modifiers
@@ -326,9 +194,7 @@ void keyboard_post_scan(void) {
         }
     }
 
-    // Show which modifiers are held on LEDs 1 & 2
-    leds_set_color(1, LED1_R(keyboard_hid_report_ref[0]), LED1_G(keyboard_hid_report_ref[0]), LED1_B(keyboard_hid_report_ref[0]));
-    leds_set_color(2, LED2_W(keyboard_hid_report_ref[0]), LED2_W(keyboard_hid_report_ref[0]), LED2_W(keyboard_hid_report_ref[0]));
+    keyboard_on_scan_complete((const uint8_t*)keyboard_hid_report_ref);
 }
 
 keymap_entry_t keyboard_resolve_key(uint row, uint col) {
@@ -353,11 +219,31 @@ keymap_entry_t keyboard_resolve_key_on_layer(uint row, uint col, uint layer) {
     return key;
 }
 
-
 uint8_t keyboard_get_current_layer(void) {
     return layers_get_current();
 }
 
-void keyboard_on_led_status_report(uint8_t led_status) {
-    leds_set_color(3, LED3_W(led_status), LED3_W(led_status), LED3_W(led_status));
+// weak functions
+__attribute__ ((weak)) bool kbc_on_key_press(uint row, uint col, keymap_entry_t key) {
+    return false;
+}
+
+__attribute__ ((weak)) bool kbc_on_key_release(uint row, uint col, keymap_entry_t key) {
+    return false;
+}
+
+__attribute__ ((weak)) bool kbc_on_virtual_key(keymap_entry_t key) {
+    kbc_on_key_press(0xff, 0xff, key);
+}
+
+__attribute__ ((weak)) bool keyboard_before_send_key(keymap_entry_t* key) {
+    return true;
+}
+
+__attribute__ ((weak)) void keyboard_on_led_status_report(uint8_t led_status) {
+
+}
+
+__attribute__ ((weak)) void keyboard_on_scan_complete(const uint8_t* hid_report) {
+
 }

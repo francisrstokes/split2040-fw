@@ -9,13 +9,6 @@
 #include "pico/types.h"
 #include "keyboard.h"
 
-// defines
-#define LAYER_QWERTY            (0)
-#define LAYER_LOWER             (1)
-#define LAYER_RAISE             (2)
-#define LAYER_FN                (3)
-#define LAYER_MAX               (4)
-
 // typedefs
 typedef struct layer_state_t {
     uint8_t base;
@@ -29,3 +22,6 @@ bool layers_on_virtual_key(keymap_entry_t key);
 uint8_t layers_get_current(void);
 uint8_t layers_get_base(void);
 void layers_set(uint8_t layer);
+
+// weak functions, to be implemented by the specific keyboard
+void layer_post_set(uint8_t layer);

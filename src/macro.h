@@ -9,9 +9,6 @@
 #include "pico/types.h"
 #include "keyboard.h"
 
-// defines
-#define NUM_MACRO_SLOTS (8)
-
 // typedefs
 typedef enum macro_type_t {
     macro_type_unused,

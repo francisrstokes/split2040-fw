@@ -1,6 +1,8 @@
 #include "usb_descriptors.h"
 #include "hid.h"
 
+#include "keyboard.h"
+
 // defines
 #define EP0_IN_ADDR     (USB_DIR_IN  | 0)
 #define EP0_OUT_ADDR    (USB_DIR_OUT | 0)
@@ -31,9 +33,9 @@ static const uint8_t hid_boot_keyboard_report_descriptor[] = {
         HID_REPORT_COUNT(6),
         HID_REPORT_SIZE(8),
         HID_USAGE_MIN(0),
-        HID_USAGE_MAX_N(255, 2),
+        HID_USAGE_MAX(255),
         HID_LOGICAL_MIN(0),
-        HID_LOGICAL_MAX_N( 255, 2),
+        HID_LOGICAL_MAX(255),
         HID_INPUT(HID_DATA | HID_ARRAY | HID_ABSOLUTE),
 
     // 5 bit led status
@@ -80,8 +82,8 @@ const struct usb_device_descriptor device_descriptor = {
     .bDeviceSubClass = 0,      // No subclass
     .bDeviceProtocol = 0,      // No protocol
     .bMaxPacketSize0 = 64,     // Max packet size for ep0
-    .idVendor        = 0x7083, // Your vendor id
-    .idProduct       = 0x0002, // Your product ID
+    .idVendor        = USB_VID, // Your vendor id
+    .idProduct       = USB_PID, // Your product ID
     .bcdDevice       = 0,      // No device revision number
     .iManufacturer   = 1,      // Manufacturer string index
     .iProduct        = 2,      // Product string index
@@ -107,7 +109,7 @@ const struct usb_endpoint_descriptor ep1_in = {
     .bEndpointAddress = EP1_IN_ADDR, // EP number 1, IN from host (tx from device)
     .bmAttributes     = USB_TRANSFER_TYPE_INTERRUPT,
     .wMaxPacketSize   = 8,
-    .bInterval        = 10 // 10ms / 100Hz
+    .bInterval        = USB_REPORT_INTERVAL
 };
 
 const struct usb_hid_descriptor hid_descriptor = {
@@ -141,8 +143,8 @@ const uint8_t lang_descriptor[] = {
 };
 
 const unsigned char* descriptor_strings[] = {
-    (unsigned char*) "Francis Stokes", // Vendor
-    (unsigned char*) "split2040-fw"    // Product
+    (unsigned char*) USB_VENDOR_STRING,  // Vendor
+    (unsigned char*) USB_PRODUCT_STRING  // Product
 };
 
 // public functions

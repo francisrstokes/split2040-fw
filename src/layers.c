@@ -1,21 +1,9 @@
 #include "layers.h"
 #include "keyboard.h"
 #include "matrix.h"
-#include "color.h"
-#include "leds.h"
 
 // statics
-static layer_state_t layer_state = {
-    .base = LAYER_QWERTY,
-    .current = LAYER_QWERTY,
-};
-
-static const uint8_t layer_colors[NUM_LAYERS][3] = {
-    {WHITE},
-    {CYAN},
-    {ORANGE},
-    {MAGENTA}
-};
+static layer_state_t layer_state = {0};
 
 // public functions
 bool layers_on_key_press(uint row, uint col, keymap_entry_t key) {
@@ -68,5 +56,9 @@ uint8_t layers_get_base(void) {
 
 void layers_set(uint8_t layer) {
     layer_state.current = layer;
-    leds_set_color(0, layer_colors[layer][0], layer_colors[layer][1], layer_colors[layer][2]);
+    layer_post_set(layer);
+}
+
+__attribute__((weak)) void layer_post_set(uint8_t layer) {
+
 }

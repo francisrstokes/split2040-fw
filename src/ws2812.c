@@ -14,8 +14,7 @@
 #include "ws2812.pio.h"
 #include "ws2812.h"
 
-// defines
-#define WS2812_PIN  (6)
+#include "keyboard.h"
 
 // statics
 static PIO pio;
