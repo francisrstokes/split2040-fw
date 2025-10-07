@@ -30,6 +30,7 @@ add_executable(usb_keyboard
 
         # Specific keyboards
         src/machines/hex2a/machine.c
+        src/machines/split2040/machine.c
         )
 
 pico_enable_stdio_uart(usb_keyboard 0)
