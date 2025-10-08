@@ -11,8 +11,8 @@
 
 // typedefs
 typedef struct leds_state_t {
-    uint8_t leds[NUM_LEDS][3];
-    uint8_t leds_out[NUM_LEDS][3];
+    uint8_t leds[LEDS_MAX][3];
+    uint8_t leds_out[LEDS_MAX][3];
     uint8_t brightness;
     uint8_t mask;
     bool should_transmit;

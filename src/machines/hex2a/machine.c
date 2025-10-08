@@ -64,7 +64,7 @@ const keymap_entry_t keymap[LAYER_MAX][MATRIX_ROWS][MATRIX_COLS] = {
     )
 };
 
-combo_t combos[NUM_COMBO_SLOTS] = {
+combo_t combos[COMBO_MAX] = {
     [0]  = COMBO2(KC_E,         KC_R,           LS(KC_9)),       // (
     [1]  = COMBO2(KC_U,         KC_I,           LS(KC_0)),       // )
     [2]  = COMBO2(KC_C,         KC_V,           KC_BRKT_L),      // [
@@ -85,7 +85,7 @@ combo_t combos[NUM_COMBO_SLOTS] = {
 
 const char arrow_deref[] = "->";
 
-macro_t macros[NUM_MACRO_SLOTS] = {
+macro_t macros[MACRO_MAX] = {
     [0] = SEND_STRING(arrow_deref, sizeof(arrow_deref)),
     [1] = MACRO_UNUSED,
     [2] = MACRO_UNUSED,

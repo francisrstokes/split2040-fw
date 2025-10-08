@@ -28,8 +28,8 @@ typedef struct combo_t {
     combo_state_t state;
     uint8_t time_since_first_press;
     uint8_t keys_pressed_bitmask;
-    keymap_entry_t keys[MAX_KEYS_PER_COMBO];
-    rowcol_t key_positions[MAX_KEYS_PER_COMBO];
+    keymap_entry_t keys[COMBO_KEYS_MAX];
+    rowcol_t key_positions[COMBO_KEYS_MAX];
     keymap_entry_t key_out;
     uint8_t held_index;
 } combo_t;

@@ -41,7 +41,7 @@ void taphold_init(void) {
         &tapholds.allocator,
         tapholds.data_array,
         tapholds.node_array,
-        MAX_CONCURRENT_TAPHOLDS,
+        TAP_HOLD_MAX,
         sizeof(taphold_data_t)
     );
 }

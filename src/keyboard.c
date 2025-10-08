@@ -24,8 +24,8 @@ static uint8_t* keyboard_hid_report_ref = NULL;
 static uint8_t report_press_count = 0;
 
 // externs
-extern combo_t combos[NUM_COMBO_SLOTS];
-extern macro_t macros[NUM_MACRO_SLOTS];
+extern combo_t combos[COMBO_MAX];
+extern macro_t macros[MACRO_MAX];
 extern const keymap_entry_t keymap[LAYER_MAX][MATRIX_ROWS][MATRIX_COLS];
 
 // private functions

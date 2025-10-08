@@ -27,8 +27,8 @@ typedef struct double_tap_data_t {
 } double_tap_data_t;
 
 typedef struct double_tap_state_t {
-    double_tap_data_t data_array[MAX_CONCURRENT_DOUBLE_TAPS];
-    ll_node_t node_array[MAX_CONCURRENT_DOUBLE_TAPS];
+    double_tap_data_t data_array[DOUBLE_TAP_MAX];
+    ll_node_t node_array[DOUBLE_TAP_MAX];
     ll_allocator_t allocator;
 } double_tap_state_t;
 
