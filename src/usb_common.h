@@ -145,6 +145,7 @@ struct usb_hid_descriptor
 } __attribute__((packed));
 
 void usb_device_init(void);
-uint8_t* usb_get_hid_descriptor_ptr(void);
+uint8_t* usb_get_kb_hid_descriptor_ptr(void);
+uint16_t* usb_get_cc_hid_descriptor_ptr(void);
 void usb_wait_for_device_to_configured(void);
 void usb_update(void);

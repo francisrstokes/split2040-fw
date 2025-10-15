@@ -3,11 +3,6 @@
 
 #include "keyboard.h"
 
-// defines
-#define EP0_IN_ADDR     (USB_DIR_IN  | 0)
-#define EP0_OUT_ADDR    (USB_DIR_OUT | 0)
-#define EP1_IN_ADDR     (USB_DIR_IN  | 1)
-
 // static const structures
 static const uint8_t hid_boot_keyboard_report_descriptor[] = {
     HID_USAGE_PAGE(HID_USAGE_PAGE_DESKTOP),
@@ -54,6 +49,23 @@ static const uint8_t hid_boot_keyboard_report_descriptor[] = {
     HID_COLLECTION_END
 };
 
+static const uint8_t hid_consumer_control_report_descriptor[] = {
+    HID_USAGE_PAGE(HID_USAGE_PAGE_CONSUMER),
+    HID_USAGE(HID_USAGE_CONSUMER_CONTROL),
+    HID_COLLECTION(HID_COLLECTION_APPLICATION),
+
+    // 16 bits for consumer control
+    HID_USAGE_MIN(1),
+    HID_USAGE_MAX_N(672, 2),
+    HID_LOGICAL_MIN(1),
+    HID_LOGICAL_MAX_N(672, 2),
+    HID_REPORT_COUNT(1),
+    HID_REPORT_SIZE(16),
+    HID_INPUT(HID_DATA | HID_ARRAY | HID_ABSOLUTE),
+
+    HID_COLLECTION_END
+};
+
 // EP0 IN and OUT
 static const struct usb_endpoint_descriptor ep0_out = {
     .bLength          = sizeof(struct usb_endpoint_descriptor),
@@ -91,7 +103,7 @@ const struct usb_device_descriptor device_descriptor = {
     .bNumConfigurations = 1    // One configuration
 };
 
-const struct usb_interface_descriptor interface_descriptor = {
+const struct usb_interface_descriptor kb_interface_descriptor = {
     .bLength            = sizeof(struct usb_interface_descriptor),
     .bDescriptorType    = USB_DT_INTERFACE,
     .bInterfaceNumber   = 0,
@@ -100,6 +112,18 @@ const struct usb_interface_descriptor interface_descriptor = {
     .bInterfaceClass    = 0x03, // HID
     .bInterfaceSubClass = 0x01, // Boot subclass
     .bInterfaceProtocol = 0x01, // Keyboard
+    .iInterface         = 0
+};
+
+const struct usb_interface_descriptor cc_interface_descriptor = {
+    .bLength            = sizeof(struct usb_interface_descriptor),
+    .bDescriptorType    = USB_DT_INTERFACE,
+    .bInterfaceNumber   = 1,
+    .bAlternateSetting  = 0,
+    .bNumEndpoints      = 1,    // Just the consumer control report
+    .bInterfaceClass    = 0x03, // HID
+    .bInterfaceSubClass = 0x00,
+    .bInterfaceProtocol = 0x00,
     .iInterface         = 0
 };
 
@@ -112,7 +136,16 @@ const struct usb_endpoint_descriptor ep1_in = {
     .bInterval        = USB_REPORT_INTERVAL
 };
 
-const struct usb_hid_descriptor hid_descriptor = {
+const struct usb_endpoint_descriptor ep2_in = {
+    .bLength          = sizeof(struct usb_endpoint_descriptor),
+    .bDescriptorType  = USB_DT_ENDPOINT,
+    .bEndpointAddress = EP2_IN_ADDR, // EP number 2, IN from host (tx from device)
+    .bmAttributes     = USB_TRANSFER_TYPE_INTERRUPT,
+    .wMaxPacketSize   = 8,
+    .bInterval        = USB_REPORT_INTERVAL
+};
+
+const struct usb_hid_descriptor kb_hid_descriptor = {
     .bLength = sizeof(struct usb_hid_descriptor),
     .bDescriptorType = HID_DESC_TYPE_HID,
     .bcdHID = 0x0111,         // HID 1.11
@@ -122,14 +155,27 @@ const struct usb_hid_descriptor hid_descriptor = {
     .wReportLength = sizeof(hid_boot_keyboard_report_descriptor)
 };
 
+const struct usb_hid_descriptor cc_hid_descriptor = {
+    .bLength = sizeof(struct usb_hid_descriptor),
+    .bDescriptorType = HID_DESC_TYPE_HID,
+    .bcdHID = 0x0111,         // HID 1.11
+    .bCountryCode = 0,        // Not supported
+    .bNumDescriptors = 1,     // We only have one descriptor (report)
+    .bReportType = HID_DESC_TYPE_REPORT,
+    .wReportLength = sizeof(hid_consumer_control_report_descriptor)
+};
+
 const struct usb_configuration_descriptor config_descriptor = {
     .bLength         = sizeof(struct usb_configuration_descriptor),
     .bDescriptorType = USB_DT_CONFIG,
     .wTotalLength    = (sizeof(config_descriptor) +
-                        sizeof(interface_descriptor) +
-                        sizeof(hid_descriptor) +
-                        sizeof(ep1_in)),
-    .bNumInterfaces  = 1,
+                        sizeof(kb_interface_descriptor) +
+                        sizeof(cc_interface_descriptor) +
+                        sizeof(kb_hid_descriptor) +
+                        sizeof(cc_hid_descriptor) +
+                        sizeof(ep1_in) +
+                        sizeof(ep2_in)),
+    .bNumInterfaces  = 2,
     .bConfigurationValue = 1, // Configuration 1
     .iConfiguration = 0,      // No string
     .bmAttributes = 0xa0,     // attributes: bus powered, remote wakeup
@@ -152,8 +198,16 @@ const uint8_t* usb_get_hid_boot_keyboard_report_descriptor(void) {
     return (uint8_t*)hid_boot_keyboard_report_descriptor;
 }
 
+const uint8_t* usb_get_hid_consumer_control_report_descriptor(void) {
+    return (uint8_t*)hid_consumer_control_report_descriptor;
+}
+
 uint32_t usb_get_hid_boot_keyboard_report_descriptor_size(void) {
     return sizeof(hid_boot_keyboard_report_descriptor);
+}
+
+uint32_t usb_get_hid_consumer_control_report_descriptor_size(void) {
+    return sizeof(hid_consumer_control_report_descriptor);
 }
 
 const struct usb_endpoint_descriptor* usb_get_ep0_out_descriptor(void) {
@@ -168,16 +222,28 @@ const struct usb_endpoint_descriptor* usb_get_ep1_in_descriptor(void) {
     return &ep1_in;
 }
 
+const struct usb_endpoint_descriptor* usb_get_ep2_in_descriptor(void) {
+    return &ep2_in;
+}
+
 const struct usb_device_descriptor* usb_get_device_descriptor(void) {
     return &device_descriptor;
 }
 
-const struct usb_interface_descriptor* usb_get_interface_descriptor(void) {
-    return &interface_descriptor;
+const struct usb_interface_descriptor* usb_get_kb_interface_descriptor(void) {
+    return &kb_interface_descriptor;
 }
 
-const struct usb_hid_descriptor* usb_get_hid_descriptor(void) {
-    return &hid_descriptor;
+const struct usb_interface_descriptor* usb_get_cc_interface_descriptor(void) {
+    return &cc_interface_descriptor;
+}
+
+const struct usb_hid_descriptor* usb_get_kb_hid_descriptor(void) {
+    return &kb_hid_descriptor;
+}
+
+const struct usb_hid_descriptor* usb_get_cc_hid_descriptor(void) {
+    return &cc_hid_descriptor;
 }
 
 const struct usb_configuration_descriptor* usb_get_configuration_descriptor(void) {

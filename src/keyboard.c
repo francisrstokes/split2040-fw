@@ -21,6 +21,7 @@
 
 // statics
 static uint8_t* keyboard_hid_report_ref = NULL;
+static uint16_t* cc_hid_report_ref = NULL;
 static uint8_t report_press_count = 0;
 
 // externs
@@ -46,6 +47,10 @@ static void keyboard_handle_remaining_presses(void) {
                     // this is a boot protocol keyboard, and it can't support more than 6 simultaneous keys.
                     // officially, we should be reporting an error through the hid protocol if there were more than 6, but let's skip
                     // that for now
+                } break;
+
+                case ENTRY_TYPE_CC: {
+                    cc_hid_report_ref[0] = key & CC_INDEX_MASK;
                 } break;
             }
         }
@@ -90,8 +95,9 @@ static void keyboard_bootmagic(void) {
 }
 
 // public functions
-void keyboard_init(uint8_t* keyboard_hid_report) {
+void keyboard_init(uint8_t* keyboard_hid_report, uint16_t* cc_hid_report) {
     keyboard_hid_report_ref = keyboard_hid_report;
+    cc_hid_report_ref = cc_hid_report;
 
     // Reset to the bootrom if the escape key is held during boot
     keyboard_bootmagic();
@@ -157,6 +163,9 @@ void keyboard_post_scan(void) {
     // Clear the report
     keyboard_clear_sent_keys();
     report_press_count = 0;
+
+    // Clear the consumer report
+    *cc_hid_report_ref = 0;
 
     // Before processing the keypresses, handle any released keys
     const uint32_t* released_bitmap = matrix_get_released_this_scan_bitmap();

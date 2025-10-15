@@ -84,9 +84,21 @@ static endpoint_t ep_kb_in = {
     .next_pid = 0
 };
 
+static endpoint_t ep_cc_in = {
+    .buffer_control = &usb_dpram->ep_buf_ctrl[2].in,
+    .endpoint_control = &usb_dpram->ep_ctrl[1].in,
+    // The Keyboard interrupt only needs 8 bytes, but each data buffer slot has to be aligned to 64 bytes
+    .data_buffer = &(usb_dpram->epx_data[64]),
+    .descriptor = NULL,
+    .next_pid = 0
+};
+
 // HID keyboard report
 static uint8_t keyboard_hid_report[8] = {0};
 static uint8_t next_keyboard_hid_report[8] = {0};
+
+static uint16_t consumer_control_report = 0;
+static uint16_t next_consumer_control_report = 0;
 
 // Private functions
 static uint8_t usb_prepare_string_descriptor(const unsigned char *str) {
@@ -113,8 +125,9 @@ static void usb_setup_endpoints(void) {
     ep0.out.descriptor = usb_get_ep0_out_descriptor();
     ep0.in.descriptor = usb_get_ep0_in_descriptor();
     ep_kb_in.descriptor = usb_get_ep1_in_descriptor();
+    ep_cc_in.descriptor = usb_get_ep2_in_descriptor();
 
-    // Just set up the keyboard in endpoint
+    // Set up the keyboard report endpoint
     uint32_t dpram_offset = (uint32_t)ep_kb_in.data_buffer ^ (uint32_t)usb_dpram;
     uint32_t reg = EP_CTRL_ENABLE_BITS
                    | EP_CTRL_INTERRUPT_PER_BUFFER
@@ -122,6 +135,15 @@ static void usb_setup_endpoints(void) {
                    | dpram_offset;
 
     *ep_kb_in.endpoint_control = reg;
+
+    // Set up the consumer control report endpoint
+    dpram_offset = (uint32_t)ep_cc_in.data_buffer ^ (uint32_t)usb_dpram;
+    reg = EP_CTRL_ENABLE_BITS
+                   | EP_CTRL_INTERRUPT_PER_BUFFER
+                   | (ep_cc_in.descriptor->bmAttributes << EP_CTRL_BUFFER_TYPE_LSB)
+                   | dpram_offset;
+
+    *ep_cc_in.endpoint_control = reg;
 }
 
 static inline bool ep_is_tx(endpoint_t* ep) {
@@ -171,17 +193,29 @@ static void usb_handle_config_descriptor(volatile struct usb_setup_packet *pkt) 
 
     // If we're asked more than just the config descriptor copy it all
     if (pkt->wLength >= d->wTotalLength) {
-        memcpy((void *) buf, usb_get_interface_descriptor(), sizeof(struct usb_interface_descriptor));
+        // The interface, HID, and report descriptors for the keyboard
+        memcpy((void *) buf, usb_get_kb_interface_descriptor(), sizeof(struct usb_interface_descriptor));
         buf += sizeof(struct usb_interface_descriptor);
         len += sizeof(struct usb_interface_descriptor);
 
-        // Add the HID descriptor
-        memcpy((void *) buf, usb_get_hid_descriptor(), sizeof(struct usb_hid_descriptor));
+        memcpy((void *) buf, usb_get_kb_hid_descriptor(), sizeof(struct usb_hid_descriptor));
         buf += sizeof(struct usb_hid_descriptor);
         len += sizeof(struct usb_hid_descriptor);
 
-        // Add the keyboard endpoint
         memcpy((void *)buf, ep_kb_in.descriptor, sizeof(struct usb_endpoint_descriptor));
+        buf += sizeof(struct usb_endpoint_descriptor);
+        len += sizeof(struct usb_endpoint_descriptor);
+
+        // The interface, HID, and report descriptors for the consumer control
+        memcpy((void *) buf, usb_get_cc_interface_descriptor(), sizeof(struct usb_interface_descriptor));
+        buf += sizeof(struct usb_interface_descriptor);
+        len += sizeof(struct usb_interface_descriptor);
+
+        memcpy((void *) buf, usb_get_cc_hid_descriptor(), sizeof(struct usb_hid_descriptor));
+        buf += sizeof(struct usb_hid_descriptor);
+        len += sizeof(struct usb_hid_descriptor);
+
+        memcpy((void *)buf, ep_cc_in.descriptor, sizeof(struct usb_endpoint_descriptor));
         buf += sizeof(struct usb_endpoint_descriptor);
         len += sizeof(struct usb_endpoint_descriptor);
     }
@@ -192,20 +226,32 @@ static void usb_handle_config_descriptor(volatile struct usb_setup_packet *pkt) 
 }
 
 static void usb_handle_hid_descriptor(volatile struct usb_setup_packet *pkt) {
+    uint8_t* buffer = (uint8_t*)(pkt->wIndex == KB_INTERFACE
+        ? usb_get_kb_hid_descriptor()
+        : usb_get_cc_hid_descriptor());
+
     ep0.state = ep0_state_tx_buf;
     usb_start_transfer(
         &ep0.in,
-        (uint8_t*)usb_get_hid_descriptor(),
+        buffer,
         MIN(pkt->wLength, sizeof(struct usb_hid_descriptor))
     );
 }
 
 static void usb_handle_hid_report_descriptor(volatile struct usb_setup_packet *pkt) {
+    uint8_t* buffer = (uint8_t*)(pkt->wIndex == KB_INTERFACE
+        ? usb_get_hid_boot_keyboard_report_descriptor()
+        : usb_get_hid_consumer_control_report_descriptor());
+
+    uint16_t buffer_size = pkt->wIndex == KB_INTERFACE
+        ? usb_get_hid_boot_keyboard_report_descriptor_size()
+        : usb_get_hid_consumer_control_report_descriptor_size();
+
     ep0.state = ep0_state_tx_buf;
     usb_start_transfer(
         &ep0.in,
-        (uint8_t*)usb_get_hid_boot_keyboard_report_descriptor(),
-        MIN(pkt->wLength, usb_get_hid_boot_keyboard_report_descriptor_size())
+        buffer,
+        MIN(pkt->wLength, buffer_size)
     );
 }
 
@@ -333,6 +379,10 @@ static void usb_handle_buff_status() {
     if (buffers & USB_BUFF_CPU_SHOULD_HANDLE_EP1_IN_BITS) {
         usb_hw_clear->buf_status = USB_BUFF_CPU_SHOULD_HANDLE_EP1_IN_BITS;
     }
+
+    if (buffers & USB_BUFF_CPU_SHOULD_HANDLE_EP2_IN_BITS) {
+        usb_hw_clear->buf_status = USB_BUFF_CPU_SHOULD_HANDLE_EP2_IN_BITS;
+    }
 }
 
 
@@ -455,8 +505,12 @@ void usb_device_init(void) {
     usb_hw_set->sie_ctrl = USB_SIE_CTRL_PULLUP_EN_BITS;
 }
 
-uint8_t* usb_get_hid_descriptor_ptr(void) {
+uint8_t* usb_get_kb_hid_descriptor_ptr(void) {
     return next_keyboard_hid_report;
+}
+
+uint16_t* usb_get_cc_hid_descriptor_ptr(void) {
+    return &next_consumer_control_report;
 }
 
 void usb_wait_for_device_to_configured(void) {
@@ -471,5 +525,10 @@ void usb_update(void) {
     if (memcmp(next_keyboard_hid_report, keyboard_hid_report, 8) != 0) {
         memcpy(keyboard_hid_report, next_keyboard_hid_report, 8);
         usb_start_transfer(&ep_kb_in, (uint8_t*)keyboard_hid_report, 8);
+    }
+
+    if (next_consumer_control_report != consumer_control_report) {
+        usb_start_transfer(&ep_cc_in, (uint8_t*)&next_consumer_control_report, 2);
+        consumer_control_report = next_consumer_control_report;
     }
 }
