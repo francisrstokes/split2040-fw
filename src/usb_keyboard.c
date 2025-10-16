@@ -116,6 +116,14 @@ static endpoint_t ep_cc_in = {
     .next_pid = 0
 };
 
+static endpoint_t ep_mouse_in = {
+    .buffer_control = &usb_dpram->ep_buf_ctrl[3].in,
+    .endpoint_control = &usb_dpram->ep_ctrl[2].in,
+    .data_buffer = &(usb_dpram->epx_data[128]),
+    .descriptor = NULL,
+    .next_pid = 0
+};
+
 static uint8_t multi_packet_buffer[1024] = {0};
 
 // HID keyboard report
@@ -124,6 +132,9 @@ static uint8_t next_keyboard_hid_report[8] = {0};
 
 static uint16_t consumer_control_report = 0;
 static uint16_t next_consumer_control_report = 0;
+
+static mouse_report_t mouse_report = {0};
+static mouse_report_t next_mouse_report = {0};
 
 // Private functions
 static uint8_t usb_prepare_string_descriptor(const unsigned char *str) {
@@ -151,6 +162,7 @@ static void usb_setup_endpoints(void) {
     ep0.in.descriptor = usb_get_ep0_in_descriptor();
     ep_kb_in.descriptor = usb_get_ep1_in_descriptor();
     ep_cc_in.descriptor = usb_get_ep2_in_descriptor();
+    ep_mouse_in.descriptor = usb_get_ep3_in_descriptor();
 
     // Set up the keyboard report endpoint
     uint32_t dpram_offset = (uint32_t)ep_kb_in.data_buffer ^ (uint32_t)usb_dpram;
@@ -169,6 +181,15 @@ static void usb_setup_endpoints(void) {
                    | dpram_offset;
 
     *ep_cc_in.endpoint_control = reg;
+
+    // Set up the mouse report endpoint
+    dpram_offset = (uint32_t)ep_mouse_in.data_buffer ^ (uint32_t)usb_dpram;
+    reg = EP_CTRL_ENABLE_BITS
+                   | EP_CTRL_INTERRUPT_PER_BUFFER
+                   | (ep_mouse_in.descriptor->bmAttributes << EP_CTRL_BUFFER_TYPE_LSB)
+                   | dpram_offset;
+
+    *ep_mouse_in.endpoint_control = reg;
 }
 
 static inline bool ep_is_tx(endpoint_t* ep) {
@@ -291,6 +312,19 @@ static void usb_handle_config_descriptor(volatile struct usb_setup_packet *pkt) 
         memcpy((void *)buf, ep_cc_in.descriptor, sizeof(struct usb_endpoint_descriptor));
         buf += sizeof(struct usb_endpoint_descriptor);
         len += sizeof(struct usb_endpoint_descriptor);
+
+        // The interface, HID, and report descriptors for the mouse
+        memcpy((void *) buf, usb_get_mouse_interface_descriptor(), sizeof(struct usb_interface_descriptor));
+        buf += sizeof(struct usb_interface_descriptor);
+        len += sizeof(struct usb_interface_descriptor);
+
+        memcpy((void *) buf, usb_get_mouse_hid_descriptor(), sizeof(struct usb_hid_descriptor));
+        buf += sizeof(struct usb_hid_descriptor);
+        len += sizeof(struct usb_hid_descriptor);
+
+        memcpy((void *)buf, ep_mouse_in.descriptor, sizeof(struct usb_endpoint_descriptor));
+        buf += sizeof(struct usb_endpoint_descriptor);
+        len += sizeof(struct usb_endpoint_descriptor);
     }
 
     // Send data
@@ -303,10 +337,21 @@ static void usb_handle_config_descriptor(volatile struct usb_setup_packet *pkt) 
 }
 
 static void usb_handle_hid_descriptor(volatile struct usb_setup_packet *pkt) {
-    uint8_t* buffer = (uint8_t*)(pkt->wIndex == KB_INTERFACE
-        ? usb_get_kb_hid_descriptor()
-        : usb_get_cc_hid_descriptor());
+    uint8_t* buffer = NULL;
 
+    switch (pkt->wIndex & 0xff) {
+        case KB_INTERFACE: {
+            buffer = (uint8_t*)usb_get_kb_hid_descriptor();
+        } break;
+
+        case CC_INTERFACE: {
+            buffer = (uint8_t*)usb_get_cc_hid_descriptor();
+        } break;
+
+        case MOUSE_INTERFACE: {
+            buffer = (uint8_t*)usb_get_mouse_hid_descriptor();
+        } break;
+    }
 
     ep0.in.data = (ep_data_state_t) {
         .bytes_total = sizeof(struct usb_hid_descriptor),
@@ -317,13 +362,25 @@ static void usb_handle_hid_descriptor(volatile struct usb_setup_packet *pkt) {
 }
 
 static void usb_handle_hid_report_descriptor(volatile struct usb_setup_packet *pkt) {
-    uint8_t* buffer = (uint8_t*)(pkt->wIndex == KB_INTERFACE
-        ? usb_get_hid_boot_keyboard_report_descriptor()
-        : usb_get_hid_consumer_control_report_descriptor());
+    uint8_t* buffer = NULL;
+    uint16_t buffer_size = 0;
 
-    uint16_t buffer_size = pkt->wIndex == KB_INTERFACE
-        ? usb_get_hid_boot_keyboard_report_descriptor_size()
-        : usb_get_hid_consumer_control_report_descriptor_size();
+    switch (pkt->wIndex & 0xff) {
+        case KB_INTERFACE: {
+            buffer = (uint8_t*)usb_get_hid_boot_keyboard_report_descriptor();
+            buffer_size = usb_get_hid_boot_keyboard_report_descriptor_size();
+        } break;
+
+        case CC_INTERFACE: {
+            buffer = (uint8_t*)usb_get_hid_consumer_control_report_descriptor();
+            buffer_size = usb_get_hid_consumer_control_report_descriptor_size();
+        } break;
+
+        case MOUSE_INTERFACE: {
+            buffer = (uint8_t*)usb_get_hid_mouse_report_descriptor();
+            buffer_size = usb_get_hid_mouse_report_descriptor_size();
+        } break;
+    }
 
     ep0.in.data = (ep_data_state_t) {
         .bytes_total = buffer_size,
@@ -351,6 +408,8 @@ static void usb_bus_reset(void) {
     ep0.in.transfer = ep_transfer_state_idle;
     ep0.out.transfer = ep_transfer_state_idle;
     ep_kb_in.next_pid = 0;
+    ep_cc_in.next_pid = 0;
+    ep_mouse_in.next_pid = 0;
     configured_by_host = false;
 }
 
@@ -462,6 +521,10 @@ static void usb_handle_buff_status() {
 
     if (buffers & USB_BUFF_CPU_SHOULD_HANDLE_EP2_IN_BITS) {
         usb_hw_clear->buf_status = USB_BUFF_CPU_SHOULD_HANDLE_EP2_IN_BITS;
+    }
+
+    if (buffers & USB_BUFF_CPU_SHOULD_HANDLE_EP3_IN_BITS) {
+        usb_hw_clear->buf_status = USB_BUFF_CPU_SHOULD_HANDLE_EP3_IN_BITS;
     }
 }
 
@@ -616,6 +679,10 @@ uint16_t* usb_get_cc_hid_descriptor_ptr(void) {
     return &next_consumer_control_report;
 }
 
+mouse_report_t* usb_get_mouse_hid_descriptor_ptr(void) {
+    return &next_mouse_report;
+}
+
 void usb_wait_for_device_to_configured(void) {
     // Wait until configured
     while (!configured_by_host) {
@@ -643,5 +710,17 @@ void usb_update(void) {
         };
         usb_write_data(&ep_cc_in);
         consumer_control_report = next_consumer_control_report;
+    }
+
+    if ((next_mouse_report.buttons != mouse_report.buttons) || (next_mouse_report.x != 0) || (next_mouse_report.y != 0)) {
+        mouse_report = next_mouse_report;
+
+        ep_mouse_in.transfer = ep_transfer_state_data;
+        ep_mouse_in.data = (ep_data_state_t) {
+            .bytes_total = sizeof(mouse_report),
+            .bytes_transferred = 0,
+            .current_buffer = (uint8_t*)&mouse_report
+        };
+        usb_write_data(&ep_mouse_in);
     }
 }

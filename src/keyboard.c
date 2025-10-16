@@ -11,6 +11,7 @@
 #include "combo.h"
 #include "layers.h"
 #include "macro.h"
+#include "mouse.h"
 #include "leds.h"
 #include "matrix.h"
 
@@ -22,6 +23,7 @@
 // statics
 static uint8_t* keyboard_hid_report_ref = NULL;
 static uint16_t* cc_hid_report_ref = NULL;
+static mouse_report_t* mouse_hid_report_ref = NULL;
 static uint8_t report_press_count = 0;
 
 // externs
@@ -58,6 +60,7 @@ static void keyboard_handle_remaining_presses(void) {
 }
 
 static void keyboard_on_key_release(uint row, uint col, keymap_entry_t key) {
+    if (mouse_on_key_release(row, col, key)) return;
     if (kbc_on_key_release(row, col, key)) return;
     if (macro_on_key_release(row, col, key)) return;
     if (combo_on_key_release(row, col, key)) return;
@@ -67,6 +70,7 @@ static void keyboard_on_key_release(uint row, uint col, keymap_entry_t key) {
 }
 
 static void keyboard_on_key_press(uint row, uint col, keymap_entry_t key) {
+    if (mouse_on_key_press(row, col, key)) return;
     if (kbc_on_key_press(row, col, key)) return;
     if (macro_on_key_press(row, col, key)) return;
 
@@ -95,12 +99,16 @@ static void keyboard_bootmagic(void) {
 }
 
 // public functions
-void keyboard_init(uint8_t* keyboard_hid_report, uint16_t* cc_hid_report) {
+void keyboard_init(uint8_t* keyboard_hid_report, uint16_t* cc_hid_report, mouse_report_t* mouse_hid_report) {
     keyboard_hid_report_ref = keyboard_hid_report;
     cc_hid_report_ref = cc_hid_report;
+    mouse_hid_report_ref = mouse_hid_report;
 
     // Reset to the bootrom if the escape key is held during boot
     keyboard_bootmagic();
+
+    // Init mouse
+    mouse_init(mouse_hid_report);
 
     // Init tapholds
     taphold_init();
@@ -159,6 +167,10 @@ void keyboard_clear_sent_keys(void) {
     memset(keyboard_hid_report_ref, 0, 8);
 }
 
+void keyboard_clear_sent_mouse_commands(void) {
+    memset(mouse_hid_report_ref, 0, sizeof(mouse_report_t));
+}
+
 void keyboard_post_scan(void) {
     // Clear the report
     keyboard_clear_sent_keys();
@@ -166,6 +178,9 @@ void keyboard_post_scan(void) {
 
     // Clear the consumer report
     *cc_hid_report_ref = 0;
+
+    // Clear the mouse report
+    keyboard_clear_sent_mouse_commands();
 
     // Before processing the keypresses, handle any released keys
     const uint32_t* released_bitmap = matrix_get_released_this_scan_bitmap();
@@ -186,6 +201,8 @@ void keyboard_post_scan(void) {
             }
         }
     }
+
+    mouse_update();
 
     if (!macro_update()) {
         // Handle combos before layer change operations to allow for the layer changing keys themselves to be used for combos

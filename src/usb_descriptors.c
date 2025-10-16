@@ -66,6 +66,43 @@ static const uint8_t hid_consumer_control_report_descriptor[] = {
     HID_COLLECTION_END
 };
 
+static const uint8_t hid_mouse_report_descriptor[] = {
+    HID_USAGE_PAGE(HID_USAGE_PAGE_DESKTOP),
+    HID_USAGE(HID_USAGE_DESKTOP_MOUSE),
+    HID_COLLECTION(HID_COLLECTION_APPLICATION),
+
+        HID_USAGE(HID_USAGE_DESKTOP_POINTER),
+        HID_COLLECTION(HID_COLLECTION_PHYSICAL),
+
+        HID_USAGE_PAGE(HID_USAGE_PAGE_BUTTON),
+            HID_USAGE_MIN(1),
+            HID_USAGE_MAX(8),
+            HID_LOGICAL_MIN(0),
+            HID_LOGICAL_MAX(1),
+            HID_REPORT_COUNT(8),
+            HID_REPORT_SIZE(1),
+            HID_INPUT(HID_DATA | HID_VARIABLE | HID_ABSOLUTE),
+
+        HID_USAGE_PAGE(HID_USAGE_PAGE_DESKTOP),
+            HID_USAGE(HID_USAGE_DESKTOP_X),
+            HID_USAGE(HID_USAGE_DESKTOP_Y),
+            HID_LOGICAL_MIN(-127),
+            HID_LOGICAL_MAX(127),
+            HID_REPORT_COUNT(2),
+            HID_REPORT_SIZE(8),
+            HID_INPUT(HID_DATA | HID_VARIABLE | HID_RELATIVE),
+
+            HID_USAGE(HID_USAGE_DESKTOP_WHEEL),
+            HID_LOGICAL_MIN(-127),
+            HID_LOGICAL_MAX(127),
+            HID_REPORT_COUNT(1),
+            HID_REPORT_SIZE(8),
+            HID_INPUT(HID_DATA | HID_VARIABLE | HID_RELATIVE),
+
+        HID_COLLECTION_END,
+    HID_COLLECTION_END
+};
+
 // EP0 IN and OUT
 static const struct usb_endpoint_descriptor ep0_out = {
     .bLength          = sizeof(struct usb_endpoint_descriptor),
@@ -122,8 +159,20 @@ const struct usb_interface_descriptor cc_interface_descriptor = {
     .bAlternateSetting  = 0,
     .bNumEndpoints      = 1,    // Just the consumer control report
     .bInterfaceClass    = 0x03, // HID
-    .bInterfaceSubClass = 0x00,
-    .bInterfaceProtocol = 0x00,
+    .bInterfaceSubClass = 0x00, // Report only
+    .bInterfaceProtocol = 0x00, // No specific protocol
+    .iInterface         = 0
+};
+
+const struct usb_interface_descriptor mouse_interface_descriptor = {
+    .bLength            = sizeof(struct usb_interface_descriptor),
+    .bDescriptorType    = USB_DT_INTERFACE,
+    .bInterfaceNumber   = 2,
+    .bAlternateSetting  = 0,
+    .bNumEndpoints      = 1,
+    .bInterfaceClass    = 0x03, // HID
+    .bInterfaceSubClass = 0x00, // Report only (not a boot mouse)
+    .bInterfaceProtocol = 0x02,  // Mouse
     .iInterface         = 0
 };
 
@@ -140,6 +189,15 @@ const struct usb_endpoint_descriptor ep2_in = {
     .bLength          = sizeof(struct usb_endpoint_descriptor),
     .bDescriptorType  = USB_DT_ENDPOINT,
     .bEndpointAddress = EP2_IN_ADDR, // EP number 2, IN from host (tx from device)
+    .bmAttributes     = USB_TRANSFER_TYPE_INTERRUPT,
+    .wMaxPacketSize   = 8,
+    .bInterval        = USB_REPORT_INTERVAL
+};
+
+const struct usb_endpoint_descriptor ep3_in = {
+    .bLength          = sizeof(struct usb_endpoint_descriptor),
+    .bDescriptorType  = USB_DT_ENDPOINT,
+    .bEndpointAddress = EP3_IN_ADDR, // EP number 3, IN from host (tx from device)
     .bmAttributes     = USB_TRANSFER_TYPE_INTERRUPT,
     .wMaxPacketSize   = 8,
     .bInterval        = USB_REPORT_INTERVAL
@@ -165,21 +223,53 @@ const struct usb_hid_descriptor cc_hid_descriptor = {
     .wReportLength = sizeof(hid_consumer_control_report_descriptor)
 };
 
+const struct usb_hid_descriptor mouse_hid_descriptor = {
+    .bLength = sizeof(struct usb_hid_descriptor),
+    .bDescriptorType = HID_DESC_TYPE_HID,
+    .bcdHID = 0x0111,         // HID 1.11
+    .bCountryCode = 0,        // Not supported
+    .bNumDescriptors = 1,     // We only have one descriptor (report)
+    .bReportType = HID_DESC_TYPE_REPORT,
+    .wReportLength = sizeof(hid_mouse_report_descriptor)
+};
+
 const struct usb_configuration_descriptor config_descriptor = {
     .bLength         = sizeof(struct usb_configuration_descriptor),
     .bDescriptorType = USB_DT_CONFIG,
     .wTotalLength    = (sizeof(config_descriptor) +
                         sizeof(kb_interface_descriptor) +
                         sizeof(cc_interface_descriptor) +
+                        sizeof(mouse_interface_descriptor) +
                         sizeof(kb_hid_descriptor) +
                         sizeof(cc_hid_descriptor) +
+                        sizeof(mouse_hid_descriptor) +
                         sizeof(ep1_in) +
-                        sizeof(ep2_in)),
-    .bNumInterfaces  = 2,
+                        sizeof(ep2_in) +
+                        sizeof(ep3_in) +
+                        0),
+    .bNumInterfaces  = 3,
     .bConfigurationValue = 1, // Configuration 1
     .iConfiguration = 0,      // No string
     .bmAttributes = 0xa0,     // attributes: bus powered, remote wakeup
     .bMaxPower = 0xfa         // 500mA
+    // .bLength         = sizeof(struct usb_configuration_descriptor),
+    // .bDescriptorType = USB_DT_CONFIG,
+    // .wTotalLength    = (sizeof(config_descriptor) +
+    //                     sizeof(kb_interface_descriptor) +
+    //                     sizeof(cc_interface_descriptor) +
+    //                     sizeof(mouse_interface_descriptor) +
+    //                     sizeof(kb_hid_descriptor) +
+    //                     sizeof(cc_hid_descriptor) +
+    //                     sizeof(mouse_hid_descriptor) +
+    //                     sizeof(ep1_in) +
+    //                     sizeof(ep2_in) +
+    //                     sizeof(ep3_in) +
+    //                     0),
+    // .bNumInterfaces  = 3,
+    // .bConfigurationValue = 1, // Configuration 1
+    // .iConfiguration = 0,      // No string
+    // .bmAttributes = 0xa0,     // attributes: bus powered, remote wakeup
+    // .bMaxPower = 0xfa         // 500mA
 };
 
 const uint8_t lang_descriptor[] = {
@@ -202,12 +292,20 @@ const uint8_t* usb_get_hid_consumer_control_report_descriptor(void) {
     return (uint8_t*)hid_consumer_control_report_descriptor;
 }
 
+const uint8_t* usb_get_hid_mouse_report_descriptor(void) {
+    return (uint8_t*)hid_mouse_report_descriptor;
+}
+
 uint32_t usb_get_hid_boot_keyboard_report_descriptor_size(void) {
     return sizeof(hid_boot_keyboard_report_descriptor);
 }
 
 uint32_t usb_get_hid_consumer_control_report_descriptor_size(void) {
     return sizeof(hid_consumer_control_report_descriptor);
+}
+
+uint32_t usb_get_hid_mouse_report_descriptor_size(void) {
+    return sizeof(hid_mouse_report_descriptor);
 }
 
 const struct usb_endpoint_descriptor* usb_get_ep0_out_descriptor(void) {
@@ -226,6 +324,10 @@ const struct usb_endpoint_descriptor* usb_get_ep2_in_descriptor(void) {
     return &ep2_in;
 }
 
+const struct usb_endpoint_descriptor* usb_get_ep3_in_descriptor(void) {
+    return &ep3_in;
+}
+
 const struct usb_device_descriptor* usb_get_device_descriptor(void) {
     return &device_descriptor;
 }
@@ -238,12 +340,20 @@ const struct usb_interface_descriptor* usb_get_cc_interface_descriptor(void) {
     return &cc_interface_descriptor;
 }
 
+const struct usb_interface_descriptor* usb_get_mouse_interface_descriptor(void) {
+    return &mouse_interface_descriptor;
+}
+
 const struct usb_hid_descriptor* usb_get_kb_hid_descriptor(void) {
     return &kb_hid_descriptor;
 }
 
 const struct usb_hid_descriptor* usb_get_cc_hid_descriptor(void) {
     return &cc_hid_descriptor;
+}
+
+const struct usb_hid_descriptor* usb_get_mouse_hid_descriptor(void) {
+    return &mouse_hid_descriptor;
 }
 
 const struct usb_configuration_descriptor* usb_get_configuration_descriptor(void) {

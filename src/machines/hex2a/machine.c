@@ -57,7 +57,7 @@ const keymap_entry_t keymap[LAYER_MAX][MATRIX_ROWS][MATRIX_COLS] = {
     ),
 
     [LAYER_SPLIT] = LAYOUT_HEX2A(
-        ____,      ____,       ____,       ____,           ____,           ____,             /**/               ____,       ____,           ____,       ____,       ____,           ____,
+        ____,      ____,       MOUSE_RC,   MOUSE_MC,       MOUSE_LC,       ____,             /**/               ____,       MOUSE_L,        MOUSE_D,    MOUSE_U,    MOUSE_R,        ____,
         ____,      ____,       ____,       ____,           ____,           ____,             /**/               ____,       KC_BSPC,        KC_DEL,     ____,       ____,           ____,
         SNAKE,     ____,       LC(KC_X),   LC(KC_C),       LC(KC_V),       ____,             /**/               ____,       KC_PD,          KC_PU,      KC_END,     KC_HOME,        KC_CAPS,
                                                            ____,           ____,    ____,    /**/   ____,       ____,       ____

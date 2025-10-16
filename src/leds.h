@@ -29,3 +29,7 @@ void leds_init(void);
 void leds_brightness_up(void);
 void leds_brightness_down(void);
 void leds_toggle_led_enabled(uint led_index);
+
+void leds_set_debug_led(void);
+void leds_clear_debug_led(void);
+void leds_toggle_debug_led(void);

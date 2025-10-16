@@ -58,3 +58,5 @@
 #define LEDS_MAX                    (2)
 #define LEDS_BRIGHTNESS_DELTA       (16)
 #define LEDS_INDEX_REMAP(index)     (LEDS_MAX - index - 1)
+#define LEDS_HAS_DEBUG_LED          (1)
+#define LEDS_DEBUG_LED_PIN          (25)

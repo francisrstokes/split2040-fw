@@ -18,6 +18,8 @@ static leds_state_t leds_state = {
     .should_transmit = false
 };
 
+static bool debug_led_state = false;
+
 // private functions
 static bool leds_is_off(uint index) {
     bool is_actually_off = (leds_state.leds[index][0] == 0) && (leds_state.leds[index][1] == 0) && (leds_state.leds[index][2] == 0);
@@ -83,6 +85,12 @@ void leds_write(void) {
 
 void leds_init(void) {
     ws2812_init();
+
+#ifdef LEDS_HAS_DEBUG_LED
+    gpio_init(LEDS_DEBUG_LED_PIN);
+    gpio_set_dir(LEDS_DEBUG_LED_PIN, GPIO_OUT);
+    gpio_put(LEDS_DEBUG_LED_PIN, false);
+#endif
 }
 
 void leds_brightness_up(void) {
@@ -113,3 +121,25 @@ void leds_toggle_led_enabled(uint led_index) {
     leds_state.mask ^= (1 << led_index);
     leds_compute_brightness_adjusted_color(led_index);
 }
+
+void leds_set_debug_led(void) {
+#ifdef LEDS_HAS_DEBUG_LED
+    gpio_put(LEDS_DEBUG_LED_PIN, true);
+    debug_led_state = true;
+#endif
+}
+
+void leds_clear_debug_led(void) {
+    #ifdef LEDS_HAS_DEBUG_LED
+    gpio_put(LEDS_DEBUG_LED_PIN, false);
+    debug_led_state = false;
+#endif
+}
+
+void leds_toggle_debug_led(void) {
+#ifdef LEDS_HAS_DEBUG_LED
+    debug_led_state = !debug_led_state;
+    gpio_put(LEDS_DEBUG_LED_PIN, debug_led_state);
+#endif
+}
+
