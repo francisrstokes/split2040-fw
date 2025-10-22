@@ -9,7 +9,7 @@ static bool any_macro_active = false;
 
 // private functions
 static void macro_start(uint index) {
-    if (index < NUM_MACRO_SLOTS && macros[index].type != macro_type_unused) {
+    if (index < MACRO_MAX && macros[index].type != macro_type_unused) {
         any_macro_active = true;
         macros[index].active = true;
         switch (macros[index].type) {
@@ -21,7 +21,7 @@ static void macro_start(uint index) {
 }
 
 static void macro_check_any_active(void) {
-    for (uint macro_index = 0; macro_index < NUM_MACRO_SLOTS; macro_index++) {
+    for (uint macro_index = 0; macro_index < MACRO_MAX; macro_index++) {
         if (macros[macro_index].type == macro_type_unused) break;
         if (macros[macro_index].active) {
             any_macro_active = true;
@@ -55,7 +55,7 @@ bool macro_on_virtual_key(keymap_entry_t key) {
 bool macro_update(void) {
     bool cleared_sent_keys = false;
 
-    for (uint macro_index = 0; macro_index < NUM_MACRO_SLOTS; macro_index++) {
+    for (uint macro_index = 0; macro_index < MACRO_MAX; macro_index++) {
         if (macros[macro_index].type == macro_type_unused) break;
         if (!macros[macro_index].active) break;
 

@@ -23,8 +23,8 @@ static uint offset;
 
 // public functions
 void ws2812_init(void) {
-    pio_claim_free_sm_and_add_program_for_gpio_range(&ws2812_program, &pio, &sm, &offset, WS2812_PIN, 1, true);
-    ws2812_program_init(pio, sm, offset, WS2812_PIN, 800000);
+    pio_claim_free_sm_and_add_program_for_gpio_range(&ws2812_program, &pio, &sm, &offset, LEDS_WS2812_PIN, 1, true);
+    ws2812_program_init(pio, sm, offset, LEDS_WS2812_PIN, 800000);
 }
 
 void ws2812_write(uint32_t rgb32) {

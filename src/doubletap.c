@@ -38,7 +38,7 @@ void double_tap_init(void) {
         &double_taps.allocator,
         double_taps.data_array,
         double_taps.node_array,
-        MAX_CONCURRENT_DOUBLE_TAPS,
+        DOUBLE_TAP_MAX,
         sizeof(double_tap_data_t)
     );
 }

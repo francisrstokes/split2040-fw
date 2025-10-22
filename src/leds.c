@@ -14,9 +14,11 @@ static leds_state_t leds_state = {
     .leds = { 0 },
     .leds_out = { 0 },
     .brightness =  64,
-    .mask = ((1 << NUM_LEDS) - 1),
+    .mask = ((1 << LEDS_MAX) - 1),
     .should_transmit = false
 };
+
+static bool debug_led_state = false;
 
 // private functions
 static bool leds_is_off(uint index) {
@@ -41,7 +43,7 @@ static void leds_compute_brightness_adjusted_color(uint index) {
 
 // public functions
 void leds_set_color(uint led_index, uint8_t r, uint8_t g, uint8_t b) {
-    if (led_index >= NUM_LEDS) return;
+    if (led_index >= LEDS_MAX) return;
 
     // LED 0 on this board is the rightmost led, so twiddle the index around
     bool led_changed = (leds_state.leds[led_index][0] != r || leds_state.leds[led_index][1] != g || leds_state.leds[led_index][2] != b);
@@ -58,24 +60,24 @@ void leds_set_color(uint led_index, uint8_t r, uint8_t g, uint8_t b) {
 }
 
 void leds_set_r(uint led_index, uint8_t value) {
-    if (led_index >= NUM_LEDS) return;
+    if (led_index >= LEDS_MAX) return;
     leds_set_color(led_index, value, leds_state.leds[led_index][1], leds_state.leds[led_index][2]);
 }
 
 void leds_set_g(uint led_index, uint8_t value) {
-    if (led_index >= NUM_LEDS) return;
+    if (led_index >= LEDS_MAX) return;
     leds_set_color(led_index, leds_state.leds[led_index][0], value, leds_state.leds[led_index][2]);
 }
 
 void leds_set_b(uint led_index, uint8_t value) {
-    if (led_index >= NUM_LEDS) return;
+    if (led_index >= LEDS_MAX) return;
     leds_set_color(led_index, leds_state.leds[led_index][0], leds_state.leds[led_index][1], value);
 }
 
 void leds_write(void) {
     if (leds_state.should_transmit) {
-        for (uint i = 0; i < NUM_LEDS; i++) {
-            ws2812_write(LED_TO_U32(BODGE_INDEX(i)));
+        for (uint i = 0; i < LEDS_MAX; i++) {
+            ws2812_write(LED_TO_U32(LEDS_INDEX_REMAP(i)));
         }
     }
     leds_state.should_transmit = false;
@@ -83,13 +85,19 @@ void leds_write(void) {
 
 void leds_init(void) {
     ws2812_init();
+
+#ifdef LEDS_HAS_DEBUG_LED
+    gpio_init(LEDS_DEBUG_LED_PIN);
+    gpio_set_dir(LEDS_DEBUG_LED_PIN, GPIO_OUT);
+    gpio_put(LEDS_DEBUG_LED_PIN, false);
+#endif
 }
 
 void leds_brightness_up(void) {
-    if (leds_state.brightness < (0x100 - BRIGHTNESS_DELTA)) {
-        leds_state.brightness += BRIGHTNESS_DELTA;
+    if (leds_state.brightness < (0x100 - LEDS_BRIGHTNESS_DELTA)) {
+        leds_state.brightness += LEDS_BRIGHTNESS_DELTA;
 
-        for (uint i = 0; i < NUM_LEDS; i++) {
+        for (uint i = 0; i < LEDS_MAX; i++) {
             leds_compute_brightness_adjusted_color(i);
         }
 
@@ -99,9 +107,9 @@ void leds_brightness_up(void) {
 
 void leds_brightness_down(void) {
     if (leds_state.brightness > 0) {
-        leds_state.brightness -= BRIGHTNESS_DELTA;
+        leds_state.brightness -= LEDS_BRIGHTNESS_DELTA;
 
-        for (uint i = 0; i < NUM_LEDS; i++) {
+        for (uint i = 0; i < LEDS_MAX; i++) {
             leds_compute_brightness_adjusted_color(i);
         }
 
@@ -113,3 +121,25 @@ void leds_toggle_led_enabled(uint led_index) {
     leds_state.mask ^= (1 << led_index);
     leds_compute_brightness_adjusted_color(led_index);
 }
+
+void leds_set_debug_led(void) {
+#ifdef LEDS_HAS_DEBUG_LED
+    gpio_put(LEDS_DEBUG_LED_PIN, true);
+    debug_led_state = true;
+#endif
+}
+
+void leds_clear_debug_led(void) {
+    #ifdef LEDS_HAS_DEBUG_LED
+    gpio_put(LEDS_DEBUG_LED_PIN, false);
+    debug_led_state = false;
+#endif
+}
+
+void leds_toggle_debug_led(void) {
+#ifdef LEDS_HAS_DEBUG_LED
+    debug_led_state = !debug_led_state;
+    gpio_put(LEDS_DEBUG_LED_PIN, debug_led_state);
+#endif
+}
+

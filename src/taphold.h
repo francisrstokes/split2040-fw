@@ -19,8 +19,8 @@ typedef struct taphold_data_t {
 } taphold_data_t;
 
 typedef struct taphold_state_t {
-    taphold_data_t data_array[MAX_CONCURRENT_TAPHOLDS];
-    ll_node_t node_array[MAX_CONCURRENT_TAPHOLDS];
+    taphold_data_t data_array[TAP_HOLD_MAX];
+    ll_node_t node_array[TAP_HOLD_MAX];
     ll_allocator_t allocator;
 } taphold_state_t;
 

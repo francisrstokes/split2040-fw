@@ -144,7 +144,16 @@ struct usb_hid_descriptor
   uint16_t wReportLength;   /**< the total size of the Report descriptor. */
 } __attribute__((packed));
 
+typedef struct mouse_report_t {
+    uint8_t buttons;
+    int8_t x;
+    int8_t y;
+    int8_t wheel;
+} __packed mouse_report_t;
+
 void usb_device_init(void);
-uint8_t* usb_get_hid_descriptor_ptr(void);
+uint8_t* usb_get_kb_hid_descriptor_ptr(void);
+uint16_t* usb_get_cc_hid_descriptor_ptr(void);
+mouse_report_t* usb_get_mouse_hid_descriptor_ptr(void);
 void usb_wait_for_device_to_configured(void);
 void usb_update(void);

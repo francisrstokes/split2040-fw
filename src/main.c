@@ -23,7 +23,11 @@ static bool matrix_scan_timer_cb(repeating_timer_t *rt) {
 int main(void) {
     leds_init();
     matrix_init();
-    keyboard_init(usb_get_hid_descriptor_ptr());
+    keyboard_init(
+        usb_get_kb_hid_descriptor_ptr(),
+        usb_get_cc_hid_descriptor_ptr(),
+        usb_get_mouse_hid_descriptor_ptr()
+    );
 
     usb_device_init();
     usb_wait_for_device_to_configured();

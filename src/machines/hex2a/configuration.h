@@ -37,27 +37,26 @@
 #define LAYER_MAX                   (5)
 
 // Combos
-#define NUM_COMBO_SLOTS             (16)
-#define MAX_KEYS_PER_COMBO          (4)
+#define COMBO_MAX                   (16)
+#define COMBO_KEYS_MAX              (4)
 #define COMBO_DELAY_MS              (50)
 #define COMBO_CANCEL_SUPPRESS_MS    (150)
 
 // Double tap
 #define DOUBLE_TAP_DELAY_MS         (200)
-#define MAX_CONCURRENT_DOUBLE_TAPS  (8)
+#define DOUBLE_TAP_MAX              (8)
 
 // Taphold
 #define TAP_HOLD_DELAY_MS           (200)
-#define MAX_CONCURRENT_TAPHOLDS     (8)
+#define TAP_HOLD_MAX                (8)
 
 // Macros
-#define NUM_MACRO_SLOTS             (8)
+#define MACRO_MAX                   (8)
 
 // LEDs
-#define WS2812_PIN                  (28)
-#define NUM_LEDS                    (2)
-#define BRIGHTNESS_DELTA            (16)
-
-// The LEDs are wired right to left on this board. Use this macro at the edge (just before shifting out) to keep everything else
-// thinking that LED 0 is on the left as expected
-#define BODGE_INDEX(index)          (NUM_LEDS - index - 1)
+#define LEDS_WS2812_PIN             (28)
+#define LEDS_MAX                    (2)
+#define LEDS_BRIGHTNESS_DELTA       (16)
+#define LEDS_INDEX_REMAP(index)     (LEDS_MAX - index - 1)
+#define LEDS_HAS_DEBUG_LED          (1)
+#define LEDS_DEBUG_LED_PIN          (25)

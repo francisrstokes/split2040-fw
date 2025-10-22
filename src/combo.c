@@ -14,7 +14,7 @@ static combo_t* combos = NULL;
 
 // private functions
 static int combo_get_key_index(uint combo_index, keymap_entry_t key) {
-    for (uint key_index = 0; key_index < MAX_KEYS_PER_COMBO; key_index++) {
+    for (uint key_index = 0; key_index < COMBO_KEYS_MAX; key_index++) {
         if (combos[combo_index].keys[key_index] == key) return key_index;
         if (combos[combo_index].keys[key_index] == KC_NONE) return -1;
     }
@@ -22,7 +22,7 @@ static int combo_get_key_index(uint combo_index, keymap_entry_t key) {
 }
 
 static int combo_find_next_with_key(uint start_index, keymap_entry_t key) {
-    for (uint i = start_index; i < NUM_COMBO_SLOTS; i++) {
+    for (uint i = start_index; i < COMBO_MAX; i++) {
         if (combos[start_index].state == combo_state_invalid) return -1;
 
         int key_index = combo_get_key_index(i, key);
@@ -50,7 +50,7 @@ static void combo_start(uint combo_index, uint key_index) {
 }
 
 static bool combo_is_complete(uint combo_index) {
-    for (uint key_index = 0; key_index < MAX_KEYS_PER_COMBO; key_index++) {
+    for (uint key_index = 0; key_index < COMBO_KEYS_MAX; key_index++) {
         if (combos[combo_index].keys[key_index] == KC_NONE) break;
         if ((combos[combo_index].keys_pressed_bitmask & (1 << key_index)) == 0) {
             return false;
@@ -62,7 +62,7 @@ static bool combo_is_complete(uint combo_index) {
 static int combo_get_single_pressed_index(uint combo_index) {
     uint8_t mask = combos[combo_index].keys_pressed_bitmask;
 
-    for (uint key_index = 0; key_index < MAX_KEYS_PER_COMBO; key_index++) {
+    for (uint key_index = 0; key_index < COMBO_KEYS_MAX; key_index++) {
         if (combos[combo_index].keys[key_index] == KC_NONE) return -1;
 
         // This was a pressed key, so could be the only one
@@ -85,18 +85,18 @@ static int combo_get_single_pressed_index(uint combo_index) {
 
 static void combo_mark_keys_as_handled(uint combo_index) {
     // Mark the keys involved as handled
-    for (uint key_index = 0; key_index < MAX_KEYS_PER_COMBO; key_index++) {
+    for (uint key_index = 0; key_index < COMBO_KEYS_MAX; key_index++) {
         if (combos[combo_index].keys[key_index] == KC_NONE) break;
         matrix_mark_key_as_handled(combos[combo_index].key_positions[key_index].row, combos[combo_index].key_positions[key_index].col);
     }
 }
 
 static void combo_deactivate_unfinished_overlapping_combos(uint combo_index) {
-    for (uint key_index = 0; key_index < MAX_KEYS_PER_COMBO; key_index++) {
+    for (uint key_index = 0; key_index < COMBO_KEYS_MAX; key_index++) {
         keymap_entry_t key = combos[combo_index].keys[key_index];
         if (key == KC_NONE) break;
 
-        for (uint other_index = 0; other_index < NUM_COMBO_SLOTS; other_index++) {
+        for (uint other_index = 0; other_index < COMBO_MAX; other_index++) {
             if (other_index == combo_index) continue;
             if (combos[other_index].state == combo_state_invalid) break;
 
@@ -204,7 +204,7 @@ bool combo_on_key_release(uint row, uint col, keymap_entry_t key) {
 bool combo_update(void) {
     bool there_are_unresolved_combos = false;
 
-    for (uint combo_index = 0; combo_index < NUM_COMBO_SLOTS; combo_index++) {
+    for (uint combo_index = 0; combo_index < COMBO_MAX; combo_index++) {
         if (combos[combo_index].state == combo_state_invalid) break;
         if (combos[combo_index].state == combo_state_inactive) continue;
 

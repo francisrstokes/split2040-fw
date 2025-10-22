@@ -9,6 +9,8 @@
 #include "pico/types.h"
 #include "hid.h"
 
+#include "usb_common.h"
+
 #include "machines/machine.h"
 
 // typedefs
@@ -39,6 +41,8 @@ typedef uint32_t keymap_entry_t;
 #define ENTRY_TYPE_DOUBLE_TAP   (0x30000000)
 #define ENTRY_TYPE_MACRO        (0x40000000)
 #define ENTRY_TYPE_KBC          (0x50000000)
+#define ENTRY_TYPE_CC           (0x60000000)
+#define ENTRY_TYPE_MOUSE        (0x70000000)
 
 #define KC_MASK             (0x000000ff)
 #define KEY_MODS_MASK       (0x0000ff00)
@@ -82,6 +86,31 @@ typedef uint32_t keymap_entry_t;
 
 #define MACRO(index)                (ENTRY_TYPE_MACRO | index)
 #define MACRO_INDEX_MASK            (0xffff)
+
+#define CC(index)                   (ENTRY_TYPE_CC | index)
+#define CC_INDEX_MASK               (0xffff)
+
+#define MOUSE(action)               (ENTRY_TYPE_MOUSE | action)
+#define MOUSE_ACTION_MASK           (0xffff)
+#define MOUSE_ACTION_LEFT_CLICK     (0)
+#define MOUSE_ACTION_MIDDLE_CLICK   (1)
+#define MOUSE_ACTION_RIGHT_CLICK    (2)
+#define MOUSE_ACTION_MOVE_LEFT      (3)
+#define MOUSE_ACTION_MOVE_RIGHT     (4)
+#define MOUSE_ACTION_MOVE_UP        (5)
+#define MOUSE_ACTION_MOVE_DOWN      (6)
+
+#define MOUSE_LC                    MOUSE(MOUSE_ACTION_LEFT_CLICK)
+#define MOUSE_MC                    MOUSE(MOUSE_ACTION_MIDDLE_CLICK)
+#define MOUSE_RC                    MOUSE(MOUSE_ACTION_RIGHT_CLICK)
+#define MOUSE_L                     MOUSE(MOUSE_ACTION_MOVE_LEFT)
+#define MOUSE_R                     MOUSE(MOUSE_ACTION_MOVE_RIGHT)
+#define MOUSE_U                     MOUSE(MOUSE_ACTION_MOVE_UP)
+#define MOUSE_D                     MOUSE(MOUSE_ACTION_MOVE_DOWN)
+
+#define MOUSE_BUTTON_LEFT           (1 << 0)
+#define MOUSE_BUTTON_MIDDLE         (1 << 1)
+#define MOUSE_BUTTON_RIGHT          (1 << 2)
 
 // key definitions
 #define KC_NONE     KEY(HID_KEY_NONE)
@@ -180,11 +209,11 @@ typedef uint32_t keymap_entry_t;
 #define KC_MUTE     KEY(HID_KEY_MUTE)
 #define KC_VOL_UP   KEY(HID_KEY_VOLUME_UP)
 #define KC_VOL_DN   KEY(HID_KEY_VOLUME_DOWN)
-#define KC_BGT_UP   KC_F8
-#define KC_BGT_DN   KC_F7
+#define KC_BGT_UP   CC(HID_USAGE_CONSUMER_BRIGHTNESS_INCREMENT)
+#define KC_BGT_DN   CC(HID_USAGE_CONSUMER_BRIGHTNESS_DECREMENT)
 
 // public functions
-void keyboard_init(uint8_t* keyboard_hid_report);
+void keyboard_init(uint8_t* keyboard_hid_report, uint16_t* cc_hid_report, mouse_report_t* mouse_hid_report);
 bool keyboard_send_key(keymap_entry_t key);
 void keyboard_send_modifiers(uint8_t modifiers);
 void keyboard_clear_sent_keys(void);

@@ -11,8 +11,8 @@
 
 // typedefs
 typedef struct leds_state_t {
-    uint8_t leds[NUM_LEDS][3];
-    uint8_t leds_out[NUM_LEDS][3];
+    uint8_t leds[LEDS_MAX][3];
+    uint8_t leds_out[LEDS_MAX][3];
     uint8_t brightness;
     uint8_t mask;
     bool should_transmit;
@@ -29,3 +29,7 @@ void leds_init(void);
 void leds_brightness_up(void);
 void leds_brightness_down(void);
 void leds_toggle_led_enabled(uint led_index);
+
+void leds_set_debug_led(void);
+void leds_clear_debug_led(void);
+void leds_toggle_debug_led(void);
