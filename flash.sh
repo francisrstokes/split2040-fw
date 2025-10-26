@@ -12,6 +12,14 @@ if [[ "${1:-}" == "-r" ]]; then
     fw_dir="release"
 fi
 
+if [[ "${1:-}" == "-X" ]]; then
+    fw_path="build/usb_keyboard_old.uf2"
+    echo "flashing old firmware"
+else
+    fw_path="$fw_dir/usb_keyboard.uf2"
+fi
+
+
 echo "Waiting for a pico in BOOTSEL mode..."
 start_time=$(date +%s)
 
@@ -31,7 +39,7 @@ while true; do
 done
 
 echo "Loading firmware from $fw_dir/usb_keyboard.uf2..."
-if ! picotool load --vid 0x2e8a --pid 0x0003 "$fw_dir/usb_keyboard.uf2"; then
+if ! picotool load --vid 0x2e8a --pid 0x0003 "$fw_path"; then
     echo "Error: Failed to load firmware." >&2
     exit 1
 fi
