@@ -9,6 +9,7 @@
 #include "usb_common.h"
 #include "matrix.h"
 #include "keyboard.h"
+#include "kb_config.h"
 #include "leds.h"
 
 static repeating_timer_t matrix_scan_timer = {0};
@@ -30,6 +31,7 @@ int main(void) {
     );
 
     usb_device_init();
+    kb_config_init();
     usb_wait_for_device_to_configured();
 
     // After we're configured, setup a repeating timer for scanning the key matrix

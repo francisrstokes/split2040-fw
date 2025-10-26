@@ -176,6 +176,18 @@ const struct usb_interface_descriptor mouse_interface_descriptor = {
     .iInterface         = 0
 };
 
+const struct usb_interface_descriptor kb_config_interface_descriptor = {
+    .bLength            = sizeof(struct usb_interface_descriptor),
+    .bDescriptorType    = USB_DT_INTERFACE,
+    .bInterfaceNumber   = 3,
+    .bAlternateSetting  = 0,
+    .bNumEndpoints      = 2,
+    .bInterfaceClass    = 0xff,  // Vendor specific
+    .bInterfaceSubClass = 0x00,
+    .bInterfaceProtocol = 0x00,
+    .iInterface         = 0
+};
+
 const struct usb_endpoint_descriptor ep1_in = {
     .bLength          = sizeof(struct usb_endpoint_descriptor),
     .bDescriptorType  = USB_DT_ENDPOINT,
@@ -201,6 +213,24 @@ const struct usb_endpoint_descriptor ep3_in = {
     .bmAttributes     = USB_TRANSFER_TYPE_INTERRUPT,
     .wMaxPacketSize   = 8,
     .bInterval        = USB_REPORT_INTERVAL
+};
+
+const struct usb_endpoint_descriptor ep4_in = {
+    .bLength          = sizeof(struct usb_endpoint_descriptor),
+    .bDescriptorType  = USB_DT_ENDPOINT,
+    .bEndpointAddress = EP4_IN_ADDR,
+    .bmAttributes     = USB_TRANSFER_TYPE_BULK,
+    .wMaxPacketSize   = 64,
+    .bInterval        = 0
+};
+
+const struct usb_endpoint_descriptor ep4_out = {
+    .bLength          = sizeof(struct usb_endpoint_descriptor),
+    .bDescriptorType  = USB_DT_ENDPOINT,
+    .bEndpointAddress = EP4_OUT_ADDR,
+    .bmAttributes     = USB_TRANSFER_TYPE_BULK,
+    .wMaxPacketSize   = 64,
+    .bInterval        = 1
 };
 
 const struct usb_hid_descriptor kb_hid_descriptor = {
@@ -240,36 +270,21 @@ const struct usb_configuration_descriptor config_descriptor = {
                         sizeof(kb_interface_descriptor) +
                         sizeof(cc_interface_descriptor) +
                         sizeof(mouse_interface_descriptor) +
+                        sizeof(kb_config_interface_descriptor) +
                         sizeof(kb_hid_descriptor) +
                         sizeof(cc_hid_descriptor) +
                         sizeof(mouse_hid_descriptor) +
                         sizeof(ep1_in) +
                         sizeof(ep2_in) +
                         sizeof(ep3_in) +
+                        sizeof(ep4_in) +
+                        sizeof(ep4_out) +
                         0),
-    .bNumInterfaces  = 3,
+    .bNumInterfaces  = 4,
     .bConfigurationValue = 1, // Configuration 1
     .iConfiguration = 0,      // No string
     .bmAttributes = 0xa0,     // attributes: bus powered, remote wakeup
     .bMaxPower = 0xfa         // 500mA
-    // .bLength         = sizeof(struct usb_configuration_descriptor),
-    // .bDescriptorType = USB_DT_CONFIG,
-    // .wTotalLength    = (sizeof(config_descriptor) +
-    //                     sizeof(kb_interface_descriptor) +
-    //                     sizeof(cc_interface_descriptor) +
-    //                     sizeof(mouse_interface_descriptor) +
-    //                     sizeof(kb_hid_descriptor) +
-    //                     sizeof(cc_hid_descriptor) +
-    //                     sizeof(mouse_hid_descriptor) +
-    //                     sizeof(ep1_in) +
-    //                     sizeof(ep2_in) +
-    //                     sizeof(ep3_in) +
-    //                     0),
-    // .bNumInterfaces  = 3,
-    // .bConfigurationValue = 1, // Configuration 1
-    // .iConfiguration = 0,      // No string
-    // .bmAttributes = 0xa0,     // attributes: bus powered, remote wakeup
-    // .bMaxPower = 0xfa         // 500mA
 };
 
 const uint8_t lang_descriptor[] = {
@@ -366,4 +381,16 @@ const uint8_t* usb_get_lang_descriptor(void) {
 
 const unsigned char** usb_get_descriptor_strings(void) {
     return descriptor_strings;
+}
+
+const struct usb_endpoint_descriptor* usb_get_ep4_in_descriptor(void) {
+    return &ep4_in;
+}
+
+const struct usb_endpoint_descriptor* usb_get_ep4_out_descriptor(void) {
+    return &ep4_out;
+}
+
+const struct usb_interface_descriptor* usb_get_kb_config_interface_descriptor(void) {
+    return &kb_config_interface_descriptor;
 }
