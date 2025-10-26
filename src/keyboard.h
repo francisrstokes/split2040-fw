@@ -223,6 +223,7 @@ keymap_entry_t keyboard_resolve_key(uint row, uint col);
 keymap_entry_t keyboard_resolve_key_on_layer(uint row, uint col, uint layer);
 uint8_t keyboard_get_current_layer(void);
 void keyboard_on_led_status_report(uint8_t led_status);
+void keyboard_set_keymap_ptr(void* new_keymap);
 
 // weak functions to be overridden by specific keyboards
 bool kbc_on_key_press(uint row, uint col, keymap_entry_t key);

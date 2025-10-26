@@ -26,6 +26,10 @@
 #define usb_hw_set ((usb_hw_t *)hw_set_alias_untyped(usb_hw))
 #define usb_hw_clear ((usb_hw_t *)hw_clear_alias_untyped(usb_hw))
 
+#define GET_DPRAM_BUFFER(n)                 (&(usb_dpram->epx_data[n * 64]))
+#define GET_EP_CTRL_REG(ep_num, inout)      (&usb_dpram->ep_ctrl[ep_num - 1].inout)
+#define GET_BUF_CTRL_REG(ep_num, inout)     (&usb_dpram->ep_buf_ctrl[ep_num].inout)
+
 // Typedefs
 typedef enum ep_transfer_state_t {
     ep_transfer_state_idle,
@@ -81,7 +85,7 @@ static volatile bool configured_by_host = false;
 static endpoint_zero_state_t ep0 = {
     .setup_packet = {0},
     .out = {
-        .buffer_control = &usb_dpram->ep_buf_ctrl[0].out,
+        .buffer_control = GET_BUF_CTRL_REG(0, out),
         .endpoint_control = NULL,
         .data_buffer = &usb_dpram->ep0_buf_a[0],
         .descriptor = NULL,
@@ -94,7 +98,7 @@ static endpoint_zero_state_t ep0 = {
         .transfer = ep_transfer_state_idle
     },
     .in = {
-        .buffer_control = &usb_dpram->ep_buf_ctrl[0].in,
+        .buffer_control = GET_BUF_CTRL_REG(0, in),
         .endpoint_control = NULL,
         .data_buffer = &usb_dpram->ep0_buf_a[0],
         .descriptor = NULL,
@@ -109,9 +113,9 @@ static endpoint_zero_state_t ep0 = {
 };
 
 static endpoint_t ep_kb_in = {
-    .buffer_control = &usb_dpram->ep_buf_ctrl[1].in,
-    .endpoint_control = &usb_dpram->ep_ctrl[0].in,
-    .data_buffer = &usb_dpram->epx_data[0],
+    .buffer_control = GET_BUF_CTRL_REG(1, in),
+    .endpoint_control = GET_EP_CTRL_REG(1, in),
+    .data_buffer = GET_DPRAM_BUFFER(0),
     .descriptor = NULL,
     .next_pid = 0,
     .data = {
@@ -123,34 +127,33 @@ static endpoint_t ep_kb_in = {
 };
 
 static endpoint_t ep_cc_in = {
-    .buffer_control = &usb_dpram->ep_buf_ctrl[2].in,
-    .endpoint_control = &usb_dpram->ep_ctrl[1].in,
-    // The Keyboard interrupt only needs 8 bytes, but each data buffer slot has to be aligned to 64 bytes
-    .data_buffer = &(usb_dpram->epx_data[64]),
+    .buffer_control = GET_BUF_CTRL_REG(2, in),
+    .endpoint_control = GET_EP_CTRL_REG(2, in),
+    .data_buffer = GET_DPRAM_BUFFER(1),
     .descriptor = NULL,
     .next_pid = 0
 };
 
 static endpoint_t ep_mouse_in = {
-    .buffer_control = &usb_dpram->ep_buf_ctrl[3].in,
-    .endpoint_control = &usb_dpram->ep_ctrl[2].in,
-    .data_buffer = &(usb_dpram->epx_data[128]),
+    .buffer_control = GET_BUF_CTRL_REG(3, in),
+    .endpoint_control = GET_EP_CTRL_REG(3, in),
+    .data_buffer = GET_DPRAM_BUFFER(2),
     .descriptor = NULL,
     .next_pid = 0
 };
 
 static kb_config_ep_state_t kb_config = {
     .in = {
-        .buffer_control = &usb_dpram->ep_buf_ctrl[4].in,
-        .endpoint_control = &usb_dpram->ep_ctrl[3].in,
-        .data_buffer = &(usb_dpram->epx_data[192]),
+        .buffer_control = GET_BUF_CTRL_REG(4, in),
+        .endpoint_control = GET_EP_CTRL_REG(4, in),
+        .data_buffer = GET_DPRAM_BUFFER(3),
         .descriptor = NULL,
         .next_pid = 0
     },
     .out = {
-        .buffer_control = &usb_dpram->ep_buf_ctrl[4].out,
-        .endpoint_control = &usb_dpram->ep_ctrl[3].out,
-        .data_buffer = &(usb_dpram->epx_data[256]),
+        .buffer_control = GET_BUF_CTRL_REG(4, out),
+        .endpoint_control = GET_EP_CTRL_REG(4, out),
+        .data_buffer = GET_DPRAM_BUFFER(4),
         .descriptor = NULL,
         .next_pid = 0
     },
@@ -170,9 +173,6 @@ static uint16_t next_consumer_control_report = 0;
 
 static mouse_report_t mouse_report = {0};
 static mouse_report_t next_mouse_report = {0};
-
-static uint32_t ms_counter = 0;
-static uint8_t byte_to_send[64] = {0};
 
 // Private functions
 static uint8_t usb_prepare_string_descriptor(const unsigned char *str) {
@@ -340,7 +340,7 @@ static void usb_rx_kb_config(uint8_t* buffer, uint16_t len) {
 }
 
 static void usb_tx_kb_config(uint8_t* buffer, uint16_t len) {
-    kb_config.out.data = (ep_data_state_t) {
+    kb_config.in.data = (ep_data_state_t) {
         .current_buffer = buffer,
         .bytes_total = len,
         .bytes_transferred = 0
@@ -881,17 +881,5 @@ void usb_update(void) {
             .current_buffer = (uint8_t*)&mouse_report
         };
         usb_write_data(&ep_mouse_in);
-    }
-
-    ms_counter += MATRIX_SCAN_INTERVAL_MS;
-    if (ms_counter == 1000) {
-        ms_counter = 0;
-        byte_to_send[0]++;
-        kb_config.in.data = (ep_data_state_t) {
-            .bytes_total = 64,
-            .bytes_transferred = 0,
-            .current_buffer = byte_to_send
-        };
-        usb_write_data(&kb_config.in);
     }
 }

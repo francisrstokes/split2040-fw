@@ -38,7 +38,9 @@ add_executable(usb_keyboard
 pico_enable_stdio_uart(usb_keyboard 0)
 pico_enable_stdio_usb(usb_keyboard 0)
 
-target_link_libraries(usb_keyboard PRIVATE pico_stdlib hardware_resets hardware_irq hardware_pio)
+pico_set_linker_script(usb_keyboard ${CMAKE_CURRENT_LIST_DIR}/linkerscript.ld)
+
+target_link_libraries(usb_keyboard PRIVATE pico_stdlib hardware_resets hardware_irq hardware_pio hardware_flash)
 
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/generated)
 pico_generate_pio_header(usb_keyboard ${CMAKE_CURRENT_LIST_DIR}/src/ws2812.pio OUTPUT_DIR generated)
