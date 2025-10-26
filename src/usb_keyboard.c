@@ -400,17 +400,22 @@ static void usb_handle_get_protocol(volatile struct usb_setup_packet *pkt) {
     usb_write_data(&ep0.in);
 }
 
-static void usb_bus_reset(void) {
-    // Set address back to 0
-    usb_hw->dev_addr_ctrl = 0;
+static void usb_reset_endpoint_state(void) {
     ep0.in.next_pid = 0;
     ep0.out.next_pid = 0;
-    ep0.in.transfer = ep_transfer_state_idle;
-    ep0.out.transfer = ep_transfer_state_idle;
     ep_kb_in.next_pid = 0;
     ep_cc_in.next_pid = 0;
     ep_mouse_in.next_pid = 0;
+
+    ep0.in.transfer = ep_transfer_state_idle;
+    ep0.out.transfer = ep_transfer_state_idle;
+}
+
+static void usb_bus_reset(void) {
+    usb_hw->dev_addr_ctrl = 0;
     configured_by_host = false;
+    usb_reset_endpoint_state();
+    keyboard_reset();
 }
 
 static void usb_handle_string_descriptor(volatile struct usb_setup_packet *pkt) {

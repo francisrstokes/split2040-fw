@@ -126,6 +126,16 @@ void keyboard_init(uint8_t* keyboard_hid_report, uint16_t* cc_hid_report, mouse_
     layers_set(LAYER_QWERTY);
 }
 
+void keyboard_reset(void) {
+    combo_reset();
+    taphold_reset();
+    macro_reset();
+    mouse_reset();
+    leds_reset();
+    layers_reset();
+    matrix_reset();
+}
+
 bool keyboard_send_key(keymap_entry_t key) {
     if ((key & ENTRY_TYPE_MASK) != ENTRY_TYPE_KC) {
         keyboard_handle_virtual_key(key);

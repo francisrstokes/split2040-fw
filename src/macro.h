@@ -35,6 +35,7 @@ typedef struct macro_t {
 
 // public functions
 void macro_init(macro_t* macro_table);
+void macro_reset(void);
 bool macro_on_key_press(uint row, uint col, keymap_entry_t key);
 bool macro_on_key_release(uint row, uint col, keymap_entry_t key);
 bool macro_on_virtual_key(keymap_entry_t key);

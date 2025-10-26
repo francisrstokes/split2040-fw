@@ -1,5 +1,6 @@
 #include "mouse.h"
 #include "matrix.h"
+#include <string.h>
 
 // defines
 #define MOUSE_MOVEMENT_DELTA    (4)
@@ -24,6 +25,10 @@ static mouse_states_t mouse_states = {0};
 // public functions
 void mouse_init(mouse_report_t* mouse_report_ref) {
     mouse_report = mouse_report_ref;
+}
+
+void mouse_reset(void) {
+    memset(&mouse_states, 0, sizeof(mouse_states));
 }
 
 bool mouse_update(void) {

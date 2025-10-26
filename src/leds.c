@@ -93,6 +93,16 @@ void leds_init(void) {
 #endif
 }
 
+void leds_reset(void) {
+    leds_state = (leds_state_t) {
+        .leds = { 0 },
+        .leds_out = { 0 },
+        .brightness =  64,
+        .mask = ((1 << LEDS_MAX) - 1),
+        .should_transmit = false
+    };
+}
+
 void leds_brightness_up(void) {
     if (leds_state.brightness < (0x100 - LEDS_BRIGHTNESS_DELTA)) {
         leds_state.brightness += LEDS_BRIGHTNESS_DELTA;

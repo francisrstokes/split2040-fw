@@ -11,6 +11,7 @@
 
 // public functions
 void matrix_init(void);
+void matrix_reset(void);
 void matrix_scan(void);
 bool matrix_key_pressed(uint32_t row, uint32_t col, bool also_when_handled);
 bool matrix_key_pressed_this_scan(uint32_t row, uint32_t col);

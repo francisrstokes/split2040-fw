@@ -47,6 +47,16 @@ void matrix_init(void) {
     }
 }
 
+void matrix_reset(void) {
+    // Clear all the bitmaps
+    memset(prev_pressed_bitmap, 0, sizeof(prev_pressed_bitmap));
+    memset(pressed_bitmap, 0, sizeof(pressed_bitmap));
+    memset(handled_bitmap, 0, sizeof(handled_bitmap));
+    memset(pressed_this_scan_bitmap, 0, sizeof(pressed_this_scan_bitmap));
+    memset(released_this_scan_bitmap, 0, sizeof(released_this_scan_bitmap));
+    memset(suppressed_until_release, 0, sizeof(suppressed_until_release));
+}
+
 void matrix_scan(void) {
     // Copy the last scan to the previous
     memcpy(prev_pressed_bitmap, pressed_bitmap, sizeof(pressed_bitmap));

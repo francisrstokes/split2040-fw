@@ -114,6 +114,17 @@ void combo_init(combo_t* combo_table) {
     combos = combo_table;
 }
 
+void combo_reset(void) {
+    for (uint combo_index = 0; combo_index < COMBO_MAX; combo_index++) {
+        if (combos[combo_index].state == combo_state_invalid) continue;
+
+        combos[combo_index].state = combo_state_inactive;
+        memset(combos[combo_index].key_positions, 0xff, sizeof(combos[combo_index].key_positions));
+        combos[combo_index].time_since_first_press = 0;
+        combos[combo_index].keys_pressed_bitmask = 0;
+    }
+}
+
 bool combo_on_key_press(uint row, uint col, keymap_entry_t key) {
     bool was_handled = false;
     int combo_index = combo_find_next_with_key(0, key);

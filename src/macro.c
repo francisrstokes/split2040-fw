@@ -36,6 +36,14 @@ void macro_init(macro_t* macro_table) {
     macros = macro_table;
 }
 
+void macro_reset(void) {
+    any_macro_active = false;
+    for (uint macro_index = 0; macro_index < MACRO_MAX; macro_index++) {
+        if (macros[macro_index].type == macro_type_unused) continue;
+        macros[macro_index].active = false;
+    }
+}
+
 bool macro_on_key_press(uint row, uint col, keymap_entry_t key) {
     if ((key & ENTRY_TYPE_MASK) == ENTRY_TYPE_MACRO) {
         macro_start(key & MACRO_INDEX_MASK);

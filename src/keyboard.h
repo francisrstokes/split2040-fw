@@ -214,6 +214,7 @@ typedef uint32_t keymap_entry_t;
 
 // public functions
 void keyboard_init(uint8_t* keyboard_hid_report, uint16_t* cc_hid_report, mouse_report_t* mouse_hid_report);
+void keyboard_reset(void);
 bool keyboard_send_key(keymap_entry_t key);
 void keyboard_send_modifiers(uint8_t modifiers);
 void keyboard_clear_sent_keys(void);

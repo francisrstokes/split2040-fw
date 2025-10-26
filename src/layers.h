@@ -16,6 +16,7 @@ typedef struct layer_state_t {
 } layer_state_t;
 
 // public functions
+void layers_reset(void);
 bool layers_on_key_press(uint row, uint col, keymap_entry_t key);
 bool layers_on_key_release(uint row, uint col, keymap_entry_t key);
 bool layers_on_virtual_key(keymap_entry_t key);

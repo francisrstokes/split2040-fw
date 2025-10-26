@@ -46,6 +46,10 @@ void taphold_init(void) {
     );
 }
 
+void taphold_reset(void) {
+    lla_free_all(&tapholds.allocator);
+}
+
 bool taphold_update(void) {
     ll_node_t* current_node = tapholds.allocator.active_head;
     taphold_data_t* current_taphold = NULL;

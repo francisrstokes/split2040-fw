@@ -26,6 +26,7 @@ typedef struct taphold_state_t {
 
 // public functions
 void taphold_init(void);
+void taphold_reset(void);
 bool taphold_on_key_release(uint row, uint col, keymap_entry_t key);
 bool taphold_on_key_press(uint row, uint col, keymap_entry_t key);
 bool taphold_update(void);

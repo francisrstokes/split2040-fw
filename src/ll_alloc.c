@@ -75,3 +75,13 @@ void lla_free(ll_allocator_t* alloc, ll_node_t* n) {
     unlink_node(&alloc->active_head, &alloc->active_tail, n);
     insert_head(&alloc->free_head, &alloc->free_tail, n);
 }
+
+void lla_free_all(ll_allocator_t* alloc) {
+    ll_node_t* n = alloc->active_head;
+    ll_node_t* tmp = NULL;
+    while (n != NULL) {
+        tmp = n->next;
+        lla_free(alloc, n);
+        n = tmp;
+    }
+}

@@ -43,6 +43,10 @@ void double_tap_init(void) {
     );
 }
 
+void double_tap_reset(void) {
+    lla_free_all(&double_taps.allocator);
+}
+
 bool double_tap_update(void) {
     ll_node_t* dt_node = double_taps.allocator.active_head;
     double_tap_data_t* current_dt = NULL;
