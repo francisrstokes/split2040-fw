@@ -29,9 +29,14 @@ KB_CONFIG_MSG_GET_INFO              = (0x01)
 KB_CONFIG_MSG_GET_LAYOUT            = (0x02)
 KB_CONFIG_MSG_SET_KEY               = (0x03)
 KB_CONFIG_MSG_COMMIT                = (0x04)
+KB_CONFIG_MSG_GET_MACRO             = (0x05)
+KB_CONFIG_MSG_SET_MACRO             = (0x06)
+KB_CONFIG_MSG_RESET_TO_BL           = (0x07)
+KB_CONFIG_MSG_DUMP_CONFIG           = (0x08)
 
 KB_CONFIG_COMMIT_OP_CANCEL          = (0)
 KB_CONFIG_COMMIT_OP_SAVE            = (1)
+KB_CONFIG_COMMIT_OP_ERASE           = (2)
 
 ENTRY_TYPE_KC           = 0x00000000
 ENTRY_TYPE_LAYER        = 0x10000000
@@ -466,6 +471,18 @@ class GetInfo(ctypes.Structure):
     def __repr__(self):
         return struct_to_string(self)
 
+class GetMacro(ctypes.Structure):
+    _pack_ = 1
+    _fields_ = [
+        ("macro_type", ctypes.c_uint8),
+        ("padding", ctypes.c_uint8),
+        ("length", ctypes.c_uint16),
+        ("string", ctypes.c_char * 32),
+    ]
+
+    def __repr__(self):
+        return struct_to_string(self)
+
 PAYLOAD_SIZE = PACKET_SIZE - ctypes.sizeof(PacketHeader)
 
 def round64(x):
@@ -560,13 +577,16 @@ class KBConfig:
                 sleep(0.001)
 
             elapsed_time += datetime.now() - start_time
-            if (elapsed_time.total_seconds() / 1000) > timeout_ms:
+            if (elapsed_time.total_seconds() * 1000) > timeout_ms:
                 raise TimeoutError
 
             start_time = datetime.now()
 
     @staticmethod
-    def prepare_message(message_type: int, data: bytearray):
+    def prepare_message(message_type: int, data: bytearray | bytes | None = None):
+        if data is None:
+            data = bytearray([])
+
         message_size = max(1, math.ceil( len(data) / (PACKET_SIZE - ctypes.sizeof(PacketHeader)) )) * PACKET_SIZE
         message_buffer = array("B", [0] * message_size)
         packet_number = 0
@@ -605,6 +625,25 @@ class KBConfig:
 
         self.info = info
 
+    def get_macro(self, index):
+        self.ep_out.write(KBConfig.prepare_message(
+            KB_CONFIG_MSG_GET_MACRO | KB_CONFIG_MSG_TYPE_REQ,
+            bytearray([index])
+        ))
+
+        response = self.wait_for_message()
+        assert(response.message_type == KB_CONFIG_MSG_GET_MACRO | KB_CONFIG_MSG_TYPE_RES)
+        macro = GetMacro.from_buffer(response.data)
+        print(macro)
+
+        return response.data
+
+    def set_macro(self, index, string: bytearray | bytes):
+        self.ep_out.write(KBConfig.prepare_message(
+            KB_CONFIG_MSG_SET_MACRO | KB_CONFIG_MSG_TYPE_REQ,
+            bytes([index, 0x01, 0x00]) + (len(string) + 1).to_bytes(2, "little") + string + b'\x00'
+        ))
+
     def get_layout(self, layer: int):
         self.ep_out.write(KBConfig.prepare_message(
             KB_CONFIG_MSG_GET_LAYOUT | KB_CONFIG_MSG_TYPE_REQ,
@@ -637,6 +676,27 @@ class KBConfig:
             KB_CONFIG_MSG_COMMIT | KB_CONFIG_MSG_TYPE_REQ,
             bytearray([0x4c, 0x4f, 0x4f, 0x43, KB_CONFIG_COMMIT_OP_SAVE])
         ))
+
+    def erase_flash_config(self):
+        self.ep_out.write(KBConfig.prepare_message(
+            KB_CONFIG_MSG_COMMIT | KB_CONFIG_MSG_TYPE_REQ,
+            bytearray([0x4c, 0x4f, 0x4f, 0x43, KB_CONFIG_COMMIT_OP_ERASE])
+        ))
+
+    def reset_to_bootloader(self):
+        self.ep_out.write(KBConfig.prepare_message(KB_CONFIG_MSG_RESET_TO_BL | KB_CONFIG_MSG_TYPE_REQ))
+
+    def dump_config(self, filename: str):
+        self.ep_out.write(KBConfig.prepare_message(
+            KB_CONFIG_MSG_DUMP_CONFIG | KB_CONFIG_MSG_TYPE_REQ
+        ))
+
+        message = self.wait_for_message()
+        assert(message.message_type == KB_CONFIG_MSG_DUMP_CONFIG | KB_CONFIG_MSG_TYPE_RES)
+        assert(len(message.data) == 4096)
+
+        with open(filename, "wb") as f:
+            f.write(message.data.tobytes())
 
 def print_layer_raw(layer: List[List[int]]):
     for row in layer:
@@ -722,18 +782,34 @@ def print_layer(layer: List[List[int]]):
         print("")
     print(keys_bar)
 
-kb = KBConfig()
-kb.drain_in_packets()
-kb.get_info()
-kb.set_key(layer=0, row=2, col=0, key=0x1B)
-kb.commit_to_flash()
+if __name__ == "__main__":
+    kb = KBConfig()
+    kb.drain_in_packets()
+    # kb.erase_flash_config()
 
-# layers = []
-# print("")
-# for layer in range(kb.info.layer_count):
-#     print(f"Layer {layer}:")
-#     layer = kb.get_layout(layer)
-#     layers.append(layer)
-#     print_layer(layer)
-#     print("")
+    # kb.get_info()
+
+    kb.set_macro(1, b"test")
+    kb.set_key(3, 1, 11, 0x40000001)
+
+    # sleep(2)
+    # kb.commit_to_flash()
+
+    # data = kb.dump_config("config_dump.bin")
+
+    # kb.get_macro(0)
+    # with open("macro.bin", "wb") as f:
+    #     f.write(data)
+    # kb.set_key(layer=0, row=2, col=0, key=0x1B)
+    # kb.commit_to_flash()
+
+    kb.get_info()
+    layers = []
+    print("")
+    for layer in range(kb.info.layer_count):
+        print(f"Layer {layer}:")
+        layer = kb.get_layout(layer)
+        layers.append(layer)
+        print_layer(layer)
+        print("")
 

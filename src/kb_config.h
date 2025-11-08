@@ -26,11 +26,16 @@
 #define KB_CONFIG_MSG_GET_LAYOUT            (0x02)
 #define KB_CONFIG_MSG_SET_KEY               (0x03)
 #define KB_CONFIG_MSG_COMMIT                (0x04)
+#define KB_CONFIG_MSG_GET_MACRO             (0x05)
+#define KB_CONFIG_MSG_SET_MACRO             (0x06)
+#define KB_CONFIG_MSG_RESET_TO_BL           (0x07)
+#define KB_CONFIG_MSG_DUMP_CONFIG           (0x08)
 
 #define KB_CONFIG_SENTINEL_VALUE            (0x4b454542) // "KEEB"
 #define KB_CONFIG_COMMIT_VALUE              (0x434f4f4c) // "COOL"
 #define KB_CONFIG_COMMIT_OP_CANCEL          (0)
 #define KB_CONFIG_COMMIT_OP_SAVE            (1)
+#define KB_CONFIG_COMMIT_OP_ERASE           (2)
 
 // typedefs
 typedef void (*kb_config_transfer_complete_cb_t)(void);
@@ -75,6 +80,17 @@ typedef struct kb_config_commit_t {
     uint32_t commit_value;
     uint8_t operation;
 } __packed kb_config_commit_t;
+
+typedef struct kb_config_macro_t {
+    uint16_t macro_type;
+    uint16_t length;
+    char string[MACRO_SIZE_MAX];
+} __packed kb_config_macro_t;
+
+typedef struct kb_config_set_macro_t {
+    uint8_t index;
+    kb_config_macro_t macro;
+} __packed kb_config_set_macro_t;
 
 typedef struct kb_config_message_state_t {
     bool transmitting;

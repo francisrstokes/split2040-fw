@@ -3,7 +3,7 @@
 #include "matrix.h"
 
 // statics
-static macro_t* macros = NULL;
+static volatile macro_t* macros = NULL;
 static const uint8_t ascii_to_hid_kc[128][2] =  { HID_ASCII_TO_KEYCODE };
 static bool any_macro_active = false;
 
@@ -64,8 +64,8 @@ bool macro_update(void) {
     bool cleared_sent_keys = false;
 
     for (uint macro_index = 0; macro_index < MACRO_MAX; macro_index++) {
-        if (macros[macro_index].type == macro_type_unused) break;
-        if (!macros[macro_index].active) break;
+        if (macros[macro_index].type == macro_type_unused) continue;
+        if (!macros[macro_index].active) continue;
 
         switch (macros[macro_index].type) {
             case macro_type_send_string: {
@@ -77,6 +77,17 @@ bool macro_update(void) {
                 if (buf_index == 0 && !cleared_sent_keys) {
                     keyboard_clear_sent_keys();
                     cleared_sent_keys = true;
+                }
+
+                if (buf_index > 0 && macros[macro_index].send_string.buffer[buf_index] == macros[macro_index].send_string.buffer[buf_index - 1]) {
+                    // It's the same key again. "release" the key this time, and send it again the next time around
+                    if (!macros[macro_index].send_string.was_release) {
+                        macros[macro_index].send_string.was_release = true;
+                        return true;
+                    }
+
+                    // The key has been released, send again
+                    macros[macro_index].send_string.was_release = false;
                 }
 
                 keyboard_send_key(key_code | (modifier << 8));

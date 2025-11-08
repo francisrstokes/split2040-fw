@@ -11,14 +11,15 @@
 
 // typedefs
 typedef enum macro_type_t {
-    macro_type_unused,
+    macro_type_unused = 0,
     macro_type_send_string,
 } macro_type_t;
 
 typedef struct macro_send_string_t {
     const char* buffer;
-    const uint32_t length;
+    uint32_t length;
     uint32_t index;
+    bool was_release;
 } macro_send_string_t;
 
 typedef struct macro_t {

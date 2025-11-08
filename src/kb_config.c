@@ -1,7 +1,9 @@
 #include <hardware/flash.h>
+#include <pico/bootrom.h>
 
 #include "kb_config.h"
 #include "keyboard.h"
+#include "macro.h"
 #include "leds.h"
 
 #include <string.h>
@@ -17,6 +19,14 @@ static void kb_config_tx_complete(void);
 
 #define SECTORS_PER_PAGE            (FLASH_SECTOR_SIZE / FLASH_PAGE_SIZE)
 #define KB_CONFIG_FLASH_OFFSET      (PICO_FLASH_SIZE_BYTES - FLASH_SECTOR_SIZE)
+
+#define FLASH_KEYMAP_PTR            (void*)(flash_buffer + sizeof(kb_config_flash_header_t))
+#define FLASH_MACROS_PTR            (FLASH_KEYMAP_PTR + sizeof(keymap))
+#define FLASH_MACRO(index)          (&((kb_config_macro_t*)(FLASH_MACROS_PTR))[index])
+
+#define KEY_LAYER_PTR(layer)        (FLASH_KEYMAP_PTR + ((layer) * MATRIX_ROWS * MATRIX_COLS * sizeof(uint32_t)))
+#define KEY_ROW_PTR(layer, row)     (KEY_LAYER_PTR(layer) + ((row) * MATRIX_COLS * sizeof(uint32_t)))
+#define KEY_PTR(layer, row, col)    (uint32_t*)(KEY_ROW_PTR(layer, row) + ((col) * sizeof(uint32_t)))
 
 // statics
 static uint8_t tmp_rx_buffer[PACKET_SIZE] = {0};
@@ -40,11 +50,13 @@ static const kb_config_get_info_t get_info = {
     .led_count = LEDS_MAX,
     .macro_count = MACRO_MAX,
     .combo_count = COMBO_MAX,
-    .macro_max_size = 32,
+    .macro_max_size = MACRO_SIZE_MAX,
     .combo_max_size = COMBO_KEYS_MAX
 };
 
 extern const keymap_entry_t keymap[LAYER_MAX][MATRIX_ROWS][MATRIX_COLS];
+extern macro_t macros[MACRO_MAX];
+
 static const uint16_t layout_size = MATRIX_COLS * MATRIX_ROWS * sizeof(uint32_t);
 
 static kb_config_message_state_t message_state = {0};
@@ -58,6 +70,13 @@ static void kb_config_load_from_flash(void) {
     kb_config_flash_header_t* flash_header = (kb_config_flash_header_t*)&APP_DATA_START_ADDR;
     if (flash_header->sentinel == KB_CONFIG_SENTINEL_VALUE) {
         memcpy(flash_buffer, &APP_DATA_START_ADDR, sizeof(flash_buffer));
+
+        // Copy the macros to the main buffer
+        for (int i = 0; i < MACRO_MAX; i++) {
+            macros[i].type = FLASH_MACRO(i)->macro_type;
+            macros[i].send_string.length = FLASH_MACRO(i)->length;
+            macros[i].send_string.buffer = FLASH_MACRO(i)->string;
+        }
     } else {
         // There is no valid structure in flash. Create on in RAM ready to be written if needed
         *((kb_config_flash_header_t*)flash_buffer) = (kb_config_flash_header_t) {
@@ -70,14 +89,23 @@ static void kb_config_load_from_flash(void) {
             .led_count      = LEDS_MAX,
             .macro_count    = MACRO_MAX,
             .combo_count    = COMBO_MAX,
-            .macro_max_size = 32,
+            .macro_max_size = MACRO_SIZE_MAX,
             .combo_max_size = COMBO_KEYS_MAX
         };
 
-        memcpy(flash_buffer + sizeof(kb_config_flash_header_t), keymap, sizeof(keymap));
+        // Copy the keymap to the buffer
+        memcpy(FLASH_KEYMAP_PTR, keymap, sizeof(keymap));
 
-        keyboard_set_keymap_ptr(flash_buffer + sizeof(kb_config_flash_header_t));
+        // Copy the macro definitions to the buffer
+        for (int i = 0; i < MACRO_MAX; i++) {
+            FLASH_MACRO(i)->macro_type = macros[i].type;
+            FLASH_MACRO(i)->length = macros[i].send_string.length;
+            memcpy(FLASH_MACRO(i)->string, macros[i].send_string.buffer, MACRO_SIZE_MAX);
+        }
     }
+
+    // Either way, set the keymap to what's in RAM
+    keyboard_set_keymap_ptr(FLASH_KEYMAP_PTR);
 }
 
 static void kb_config_write_to_flash(void) {
@@ -89,6 +117,14 @@ static void kb_config_write_to_flash(void) {
 
     // Program the flash buffer
     flash_range_program(KB_CONFIG_FLASH_OFFSET, flash_buffer, FLASH_SECTOR_SIZE);
+}
+
+static void kb_config_erase_from_flash(void) {
+    // Erase the current flash contents
+    flash_range_erase(KB_CONFIG_FLASH_OFFSET, FLASH_SECTOR_SIZE);
+
+    // Setup a new flash structure in memory
+    kb_config_load_from_flash();
 }
 
 static void kb_config_transmit_message(void) {
@@ -144,7 +180,7 @@ static void kb_config_rx_complete(void) {
                 .type = KB_CONFIG_MSG_GET_LAYOUT | KB_CONFIG_MSG_TYPE_RES
             };
             message_state.data_bytes_written = 0;
-            message_state.data_buffer = (const uint8_t*)keymap[layer_index];
+            message_state.data_buffer = (const uint8_t*)KEY_LAYER_PTR(layer_index);
 
             kb_config_transmit_message();
             return;
@@ -155,8 +191,8 @@ static void kb_config_rx_complete(void) {
 
             if (set_key_msg->row >= MATRIX_ROWS || set_key_msg->col >= MATRIX_COLS || set_key_msg->layer >= LAYER_MAX) break;
 
-            uint32_t (*flash_key_ptr)[LAYER_MAX][MATRIX_ROWS][MATRIX_COLS] = flash_buffer + sizeof(kb_config_flash_header_t);
-            (*flash_key_ptr)[set_key_msg->layer][set_key_msg->row][set_key_msg->col] = set_key_msg->value;
+            uint32_t* key_ptr = KEY_PTR(set_key_msg->layer, set_key_msg->row, set_key_msg->col);
+            *key_ptr = set_key_msg->value;
 
             has_uncommitted_state = true;
         } break;
@@ -164,13 +200,63 @@ static void kb_config_rx_complete(void) {
         case KB_CONFIG_MSG_COMMIT: {
             const kb_config_commit_t* commit_msg = (const kb_config_commit_t*)&tmp_rx_buffer[sizeof(kb_config_msg_header_t)];
 
-            if (!has_uncommitted_state || commit_msg->commit_value != KB_CONFIG_COMMIT_VALUE) break;
+            if (commit_msg->commit_value != KB_CONFIG_COMMIT_VALUE) break;
 
             if (commit_msg->operation == KB_CONFIG_COMMIT_OP_CANCEL) {
+                // Restore the unmodified config
                 kb_config_load_from_flash();
-            } else if (commit_msg->operation == KB_CONFIG_COMMIT_OP_SAVE) {
+            } else if (commit_msg->operation == KB_CONFIG_COMMIT_OP_SAVE && has_uncommitted_state) {
+                // Store the new, uncommitted config
                 kb_config_write_to_flash();
+            } else if (commit_msg->operation == KB_CONFIG_COMMIT_OP_ERASE) {
+                // Erase the current config, and return to the original firmware configuration
+                kb_config_erase_from_flash();
             }
+        } break;
+
+        case KB_CONFIG_MSG_RESET_TO_BL: {
+            reset_usb_boot(0, 0);
+        } break;
+
+        case KB_CONFIG_MSG_GET_MACRO: {
+            const uint8_t macro_index = tmp_rx_buffer[sizeof(kb_config_msg_header_t)];
+            if (macro_index >= MACRO_MAX) break;
+
+            message_state.header = (kb_config_msg_header_t) {
+                .packet_number = 0,
+                .payload_length = sizeof(kb_config_macro_t),
+                .type = KB_CONFIG_MSG_GET_MACRO | KB_CONFIG_MSG_TYPE_RES
+            };
+
+            message_state.data_bytes_written = 0;
+            message_state.data_buffer = (const uint8_t*)FLASH_MACRO(macro_index);
+
+            kb_config_transmit_message();
+            return;
+        } break;
+
+        case KB_CONFIG_MSG_SET_MACRO: {
+            kb_config_set_macro_t* set_macro = (kb_config_set_macro_t*)&tmp_rx_buffer[sizeof(kb_config_msg_header_t)];
+            if (set_macro->index >= MACRO_MAX) break;
+
+            *FLASH_MACRO(set_macro->index) = set_macro->macro;
+
+            macros[set_macro->index].type = set_macro->macro.macro_type;
+            macros[set_macro->index].send_string.length = set_macro->macro.length;
+            macros[set_macro->index].send_string.buffer = FLASH_MACRO(set_macro->index)->string;
+        } break;
+
+        case KB_CONFIG_MSG_DUMP_CONFIG: {
+            message_state.header = (kb_config_msg_header_t) {
+                .packet_number = 0,
+                .payload_length = FLASH_SECTOR_SIZE,
+                .type = KB_CONFIG_MSG_DUMP_CONFIG | KB_CONFIG_MSG_TYPE_RES
+            };
+            message_state.data_bytes_written = 0;
+            message_state.data_buffer = (const uint8_t*)flash_buffer;
+
+            kb_config_transmit_message();
+            return;
         } break;
     }
 
