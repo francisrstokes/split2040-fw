@@ -7,11 +7,7 @@ set -euo pipefail
 TIMEOUT=30   # seconds
 INTERVAL=1   # seconds between retries
 
-python <<HEREDOC
-from kb_config import KBConfig
-kb = KBConfig()
-kb.reset_to_bootloader()
-HEREDOC
+kbconfig --reset
 
 fw_dir="build"
 if [[ "${1:-}" == "-r" ]]; then
