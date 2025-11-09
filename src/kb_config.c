@@ -4,6 +4,7 @@
 #include "kb_config.h"
 #include "keyboard.h"
 #include "macro.h"
+#include "combo.h"
 #include "leds.h"
 
 #include <string.h>
@@ -27,6 +28,9 @@ static void kb_config_tx_complete(void);
 #define KEY_LAYER_PTR(layer)        (FLASH_KEYMAP_PTR + ((layer) * MATRIX_ROWS * MATRIX_COLS * sizeof(uint32_t)))
 #define KEY_ROW_PTR(layer, row)     (KEY_LAYER_PTR(layer) + ((row) * MATRIX_COLS * sizeof(uint32_t)))
 #define KEY_PTR(layer, row, col)    (uint32_t*)(KEY_ROW_PTR(layer, row) + ((col) * sizeof(uint32_t)))
+
+#define FLASH_COMBOS_START           (FLASH_MACROS_PTR + (MACRO_MAX * sizeof(kb_config_macro_t)))
+#define FLASH_COMBO(index)           (&((kb_config_combo_t*)FLASH_COMBOS_START)[((index))])
 
 // statics
 static uint8_t tmp_rx_buffer[PACKET_SIZE] = {0};
@@ -56,6 +60,7 @@ static const kb_config_get_info_t get_info = {
 
 extern const keymap_entry_t keymap[LAYER_MAX][MATRIX_ROWS][MATRIX_COLS];
 extern macro_t macros[MACRO_MAX];
+extern combo_t combos[COMBO_MAX];
 
 static const uint16_t layout_size = MATRIX_COLS * MATRIX_ROWS * sizeof(uint32_t);
 
@@ -69,13 +74,21 @@ static void kb_config_load_from_flash(void) {
     // Load the flash region and check if it's valid
     kb_config_flash_header_t* flash_header = (kb_config_flash_header_t*)&APP_DATA_START_ADDR;
     if (flash_header->sentinel == KB_CONFIG_SENTINEL_VALUE) {
-        memcpy(flash_buffer, &APP_DATA_START_ADDR, sizeof(flash_buffer));
+        void* app_data_start = (void*)&APP_DATA_START_ADDR;
+        memcpy(flash_buffer, app_data_start, sizeof(flash_buffer));
 
         // Copy the macros to the main buffer
         for (int i = 0; i < MACRO_MAX; i++) {
             macros[i].type = FLASH_MACRO(i)->macro_type;
             macros[i].send_string.length = FLASH_MACRO(i)->length;
             macros[i].send_string.buffer = FLASH_MACRO(i)->string;
+        }
+
+        // Copy the combos to the main buffer
+        for (int i = 0; i < COMBO_MAX; i++) {
+            combos[i].key_out = FLASH_COMBO(i)->key_out;
+            combos[i].state = combos[i].key_out == 0 ? combo_state_invalid : combo_state_inactive;
+            memcpy(combos[i].keys, FLASH_COMBO(i)->keys, sizeof(combos[i].keys));
         }
     } else {
         // There is no valid structure in flash. Create on in RAM ready to be written if needed
@@ -101,6 +114,12 @@ static void kb_config_load_from_flash(void) {
             FLASH_MACRO(i)->macro_type = macros[i].type;
             FLASH_MACRO(i)->length = macros[i].send_string.length;
             memcpy(FLASH_MACRO(i)->string, macros[i].send_string.buffer, MACRO_SIZE_MAX);
+        }
+
+        // Copy the combo definitions to the buffer
+        for (int i = 0; i < COMBO_MAX; i++) {
+            FLASH_COMBO(i)->key_out = combos[i].key_out;
+            memcpy(FLASH_COMBO(i)->keys, combos[i].keys, sizeof(combos[i].keys));
         }
     }
 
@@ -257,6 +276,17 @@ static void kb_config_rx_complete(void) {
 
             kb_config_transmit_message();
             return;
+        } break;
+
+        case KB_CONFIG_MSG_SET_COMBO: {
+            kb_config_set_combo_t* set_combo = (kb_config_set_combo_t*)&tmp_rx_buffer[sizeof(kb_config_msg_header_t)];
+            if (set_combo->index >= COMBO_MAX) break;
+
+            *FLASH_COMBO(set_combo->index) = set_combo->combo;
+
+            combos[set_combo->index].key_out = FLASH_COMBO(set_combo->index)->key_out;
+            combos[set_combo->index].state = combo_state_inactive;
+            memcpy(combos[set_combo->index].keys, FLASH_COMBO(set_combo->index)->keys, sizeof(combos[set_combo->index].keys));
         } break;
     }
 

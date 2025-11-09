@@ -2,3 +2,4 @@ build/
 release/
 generated/
 .vscode/
+__pycache__/

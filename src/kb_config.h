@@ -19,8 +19,6 @@
 
 #define KB_CONFIG_MSG_TYPE_REQ              (0x00)
 #define KB_CONFIG_MSG_TYPE_RES              (0x80)
-#define KB_CONFIG_MSG_TYPE_ACK              (0x40)
-#define KB_CONFIG_MSG_TYPE_NACK             (0x00)
 
 #define KB_CONFIG_MSG_GET_INFO              (0x01)
 #define KB_CONFIG_MSG_GET_LAYOUT            (0x02)
@@ -30,6 +28,8 @@
 #define KB_CONFIG_MSG_SET_MACRO             (0x06)
 #define KB_CONFIG_MSG_RESET_TO_BL           (0x07)
 #define KB_CONFIG_MSG_DUMP_CONFIG           (0x08)
+#define KB_CONFIG_MSG_GET_COMBO             (0x09)
+#define KB_CONFIG_MSG_SET_COMBO             (0x0A)
 
 #define KB_CONFIG_SENTINEL_VALUE            (0x4b454542) // "KEEB"
 #define KB_CONFIG_COMMIT_VALUE              (0x434f4f4c) // "COOL"
@@ -87,10 +87,20 @@ typedef struct kb_config_macro_t {
     char string[MACRO_SIZE_MAX];
 } __packed kb_config_macro_t;
 
+typedef struct kb_config_combo_t {
+    uint32_t keys[COMBO_KEYS_MAX];
+    uint32_t key_out;
+} __packed kb_config_combo_t;
+
 typedef struct kb_config_set_macro_t {
     uint8_t index;
     kb_config_macro_t macro;
 } __packed kb_config_set_macro_t;
+
+typedef struct kb_config_set_combo_t {
+    uint8_t index;
+    kb_config_combo_t combo;
+} __packed kb_config_set_combo_t;
 
 typedef struct kb_config_message_state_t {
     bool transmitting;

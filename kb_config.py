@@ -15,15 +15,9 @@ from datetime import timedelta, datetime
 
 PACKET_SIZE                         = 64
 
-KB_CONFIG_MSG_TYPE_VALUE_MASK       = (0x1f)
-KB_CONFIG_MSG_TYPE_REQ_RES_MASK     = (0x80)
-KB_CONFIG_MSG_TYPE_ACK_MASK         = (0x40)
 
 KB_CONFIG_MSG_TYPE_REQ              = (0x00)
 KB_CONFIG_MSG_TYPE_RES              = (0x80)
-
-KB_CONFIG_MSG_TYPE_ACK              = (0x40)
-KB_CONFIG_MSG_TYPE_NACK             = (0x00)
 
 KB_CONFIG_MSG_GET_INFO              = (0x01)
 KB_CONFIG_MSG_GET_LAYOUT            = (0x02)
@@ -33,6 +27,8 @@ KB_CONFIG_MSG_GET_MACRO             = (0x05)
 KB_CONFIG_MSG_SET_MACRO             = (0x06)
 KB_CONFIG_MSG_RESET_TO_BL           = (0x07)
 KB_CONFIG_MSG_DUMP_CONFIG           = (0x08)
+KB_CONFIG_MSG_GET_COMBO             = (0x09)
+KB_CONFIG_MSG_SET_COMBO             = (0x0A)
 
 KB_CONFIG_COMMIT_OP_CANCEL          = (0)
 KB_CONFIG_COMMIT_OP_SAVE            = (1)
@@ -697,6 +693,18 @@ class KBConfig:
 
         with open(filename, "wb") as f:
             f.write(message.data.tobytes())
+
+    def set_combo(self, index, keys, key_out):
+        keys = keys + ([0] * (4 - len(keys)))
+        payload = index.to_bytes(1, 'little')
+        for k in keys:
+            payload += k.to_bytes(4, "little")
+        payload += key_out.to_bytes(4, "little")
+
+        self.ep_out.write(KBConfig.prepare_message(
+            KB_CONFIG_MSG_SET_COMBO | KB_CONFIG_MSG_TYPE_REQ,
+            payload
+        ))
 
 def print_layer_raw(layer: List[List[int]]):
     for row in layer:
