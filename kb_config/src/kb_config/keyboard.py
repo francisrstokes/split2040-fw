@@ -510,7 +510,7 @@ class KCParser:
 
     def parse_number(self):
         value_str = ""
-        if self.string.startswith("0x"):
+        if self.string[self.index:].startswith("0x"):
             self.consume(2)
             while True:
                 n = self.s(1)
@@ -666,4 +666,4 @@ class KCParser:
 
 if __name__ == "__main__":
     key_parser = KCParser('')
-    code = key_parser.parse("TH(ESC,GRAVE)")
+    code = key_parser.parse("KBC(0x1004)")

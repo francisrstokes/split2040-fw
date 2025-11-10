@@ -206,9 +206,8 @@ class KBConfig:
         response = self.wait_for_message()
         assert(response.message_type == KB_CONFIG_MSG_GET_INFO | KB_CONFIG_MSG_TYPE_RES)
         info = GetInfo.from_buffer(response.data)
-        print(info)
 
-        self.info = info
+        return info
 
     def get_macro(self, index):
         self.ep_out.write(KBConfig.prepare_message(
@@ -218,9 +217,6 @@ class KBConfig:
 
         response = self.wait_for_message()
         assert(response.message_type == KB_CONFIG_MSG_GET_MACRO | KB_CONFIG_MSG_TYPE_RES)
-        macro = GetMacro.from_buffer(response.data)
-        print(macro)
-
         return response.data
 
     def set_macro(self, index, string: bytearray | bytes):
@@ -237,18 +233,13 @@ class KBConfig:
 
         message = self.wait_for_message()
         assert(message.message_type == KB_CONFIG_MSG_GET_LAYOUT | KB_CONFIG_MSG_TYPE_RES)
-        assert(len(message.data) == self.info.row_count * self.info.column_count * 4)
 
-        keymap = []
+        keys: List[int] = []
         offset = 0
-        for _ in range(self.info.row_count):
-            row = []
-            for _ in range(self.info.column_count):
-                keymap_entry_value = int.from_bytes(message.data[offset:offset+4], "little")
-                row.append(keymap_entry_value)
-                offset += 4
-            keymap.append(row)
-        return keymap
+        for offset in range(0, len(message.data), 4):
+            keymap_entry_value = int.from_bytes(message.data[offset:offset+4], "little")
+            keys.append(keymap_entry_value)
+        return keys
 
     def set_key(self, layer: int, row: int, col: int, key: int):
         self.ep_out.write(KBConfig.prepare_message(
@@ -283,8 +274,8 @@ class KBConfig:
         with open(filename, "wb") as f:
             f.write(message.data.tobytes())
 
-    def set_combo(self, index, keys, key_out):
-        keys = keys + ([0] * (4 - len(keys)))
+    def set_combo(self, index: int, keys: List[int], key_out: int, max_keys_per_combo=4):
+        keys = keys + ([0] * (max_keys_per_combo - len(keys)))
         payload = index.to_bytes(1, 'little')
         for k in keys:
             payload += k.to_bytes(4, "little")
