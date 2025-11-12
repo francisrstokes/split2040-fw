@@ -57,3 +57,12 @@ def main():
 
     if args.reset:
         kb.reset_to_bootloader()
+
+def logger():
+    kb = KBConfig()
+    while True:
+        message, length = kb.get_ring_buffer_data()
+        if length == 0:
+            sleep(0.1)
+        else:
+            print(message.tobytes()[0:length].decode("utf-8"), end="")

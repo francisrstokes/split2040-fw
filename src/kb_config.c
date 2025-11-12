@@ -14,6 +14,9 @@ static void kb_config_rx_complete(void);
 static void kb_config_tx_complete(void);
 
 // defines
+#define RING_BUFFER_SIZE            (1024)
+#define RING_BUFFER_MASK            (RING_BUFFER_SIZE - 1)
+
 #define PACKET_SIZE                 (64)
 #define PAYLOAD_SIZE                (64 - sizeof(kb_config_msg_header_t))
 #define ROUND_TO_PACKET_SIZE(n)     (((n) + PACKET_SIZE-1) & ~(PACKET_SIZE-1))
@@ -32,12 +35,30 @@ static void kb_config_tx_complete(void);
 #define FLASH_COMBOS_START           (FLASH_MACROS_PTR + (MACRO_MAX * sizeof(kb_config_macro_t)))
 #define FLASH_COMBO(index)           (&((kb_config_combo_t*)FLASH_COMBOS_START)[((index))])
 
+// typedefs
+typedef struct kb_config_ring_buffer_t {
+    uint8_t buffer[RING_BUFFER_SIZE];
+    uint16_t write_index;
+    uint16_t read_index;
+} kb_config_ring_buffer_t;
+
+typedef struct kb_config_rb_contiguous_read_result_t {
+    uint16_t length;
+    uint8_t* ptr;
+} kb_config_rb_contiguous_read_result_t;
+
 // statics
 static uint8_t tmp_rx_buffer[PACKET_SIZE] = {0};
 static uint8_t working_rx_buffer[PACKET_SIZE] = {0};
 static uint8_t tmp_tx_buffer[PACKET_SIZE] = {0};
 static uint8_t flash_buffer[FLASH_SECTOR_SIZE] = {0};
 static bool has_uncommitted_state = false;
+
+static kb_config_ring_buffer_t ring_buffer = {
+    .buffer = {0},
+    .read_index = 0,
+    .write_index = 0
+};
 
 static kb_config_bulk_ptrs_t bulk_ptrs = {
     .rx_complete = kb_config_rx_complete,
@@ -158,6 +179,21 @@ static void kb_config_transmit_message(void) {
 
     message_state.transmitting = true;
     bulk_ptrs.tx(tmp_tx_buffer, PACKET_SIZE);
+}
+
+static kb_config_rb_contiguous_read_result_t kb_config_drain_ring_buffer(void) {
+    uint16_t read_index = ring_buffer.read_index;
+    uint16_t write_index = ring_buffer.write_index;
+    uint16_t length = (write_index - read_index) & RING_BUFFER_MASK;
+    uint16_t new_read_index = (read_index + length) & RING_BUFFER_MASK;
+
+    kb_config_rb_contiguous_read_result_t result = {
+        .length = length,
+        .ptr = &ring_buffer.buffer[read_index]
+    };
+    ring_buffer.read_index = new_read_index;
+
+    return result;
 }
 
 static void kb_config_update(void) {
@@ -288,6 +324,22 @@ static void kb_config_rx_complete(void) {
             combos[set_combo->index].state = combo_state_inactive;
             memcpy(combos[set_combo->index].keys, FLASH_COMBO(set_combo->index)->keys, sizeof(combos[set_combo->index].keys));
         } break;
+
+        case KB_CONFIG_MSG_GET_RING_BUFFER_DATA: {
+            kb_config_rb_contiguous_read_result_t read_result = kb_config_drain_ring_buffer();
+
+            // It's possible and valid for there to be no bytes to send, but we need to send a response anyway
+            message_state.header = (kb_config_msg_header_t) {
+                .packet_number = 0,
+                .payload_length = read_result.length,
+                .type = KB_CONFIG_MSG_GET_RING_BUFFER_DATA | KB_CONFIG_MSG_TYPE_RES
+            };
+            message_state.data_bytes_written = 0;
+            message_state.data_buffer = (const uint8_t*)read_result.ptr;
+
+            kb_config_transmit_message();
+            return;
+        }
     }
 
     // If we get here, no messages we're processed, or there's more data to come. Queue the next rx
@@ -312,4 +364,27 @@ void kb_config_reset(void) {
 
 kb_config_bulk_ptrs_t* kb_config_get_bulk_ptrs(void) {
     return &bulk_ptrs;
+}
+
+void kb_config_log_to_ring_buffer(void* data, uint16_t length) {
+    // This ring buffer doesn't try to protect against overwriting old data. If the user is logging, they
+    // are expected to pull data fast enough, and the keyboard is expected to not over-produce data.
+
+    // Truncate messages that are too long. This will result in data loss from the end of messages.
+    if (length > RING_BUFFER_SIZE) {
+        length = RING_BUFFER_SIZE;
+    }
+
+    uint16_t write_index = ring_buffer.write_index;
+    uint16_t new_write_index = (write_index + length) & RING_BUFFER_MASK;
+
+    if (new_write_index > write_index) {
+        memcpy(&ring_buffer.buffer[write_index], data, length);
+    } else {
+        uint16_t first_copy_len = RING_BUFFER_SIZE - write_index;
+        memcpy(&ring_buffer.buffer[write_index], data, first_copy_len);
+        memcpy(&ring_buffer.buffer[0], &((uint8_t*)data)[first_copy_len], length - first_copy_len);
+    }
+
+    ring_buffer.write_index = new_write_index;
 }

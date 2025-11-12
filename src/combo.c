@@ -6,6 +6,7 @@
 
 #include "combo.h"
 #include "matrix.h"
+#include "log.h"
 
 #include <string.h>
 
@@ -150,6 +151,10 @@ bool combo_on_key_press(uint row, uint col, keymap_entry_t key) {
             }
 
             if (combo_is_complete(combo_index)) {
+                log_str("Combo ");
+                log_hex(combo_index, true);
+                log_str("\n");
+
                 keyboard_send_key(combos[combo_index].key_out);
                 combos[combo_index].state = combo_state_wait_for_all_released;
 

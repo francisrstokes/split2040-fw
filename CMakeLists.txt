@@ -29,6 +29,7 @@ add_executable(usb_keyboard
         src/leds.c
         src/mouse.c
         src/kb_config.c
+        src/log.c
 
         # Specific keyboards
         src/machines/hex2a/machine.c

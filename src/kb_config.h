@@ -30,6 +30,7 @@
 #define KB_CONFIG_MSG_DUMP_CONFIG           (0x08)
 #define KB_CONFIG_MSG_GET_COMBO             (0x09)
 #define KB_CONFIG_MSG_SET_COMBO             (0x0A)
+#define KB_CONFIG_MSG_GET_RING_BUFFER_DATA  (0x0B)
 
 #define KB_CONFIG_SENTINEL_VALUE            (0x4b454542) // "KEEB"
 #define KB_CONFIG_COMMIT_VALUE              (0x434f4f4c) // "COOL"
@@ -129,3 +130,4 @@ typedef struct kb_config_flash_header_t {
 void kb_config_init(void);
 void kb_config_reset(void);
 kb_config_bulk_ptrs_t* kb_config_get_bulk_ptrs(void);
+void kb_config_log_to_ring_buffer(void* data, uint16_t length);

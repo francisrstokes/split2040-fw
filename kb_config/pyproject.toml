@@ -17,3 +17,4 @@ dependencies = [
 
 [project.scripts]
 kbconfig = "kb_config.cli:main"
+kblog = "kb_config.cli:logger"

@@ -26,6 +26,7 @@ KB_CONFIG_MSG_RESET_TO_BL           = (0x07)
 KB_CONFIG_MSG_DUMP_CONFIG           = (0x08)
 KB_CONFIG_MSG_GET_COMBO             = (0x09)
 KB_CONFIG_MSG_SET_COMBO             = (0x0A)
+KB_CONFIG_MSG_GET_RING_BUFFER_DATA  = (0x0B)
 
 KB_CONFIG_COMMIT_OP_CANCEL          = (0)
 KB_CONFIG_COMMIT_OP_SAVE            = (1)
@@ -285,3 +286,13 @@ class KBConfig:
             KB_CONFIG_MSG_SET_COMBO | KB_CONFIG_MSG_TYPE_REQ,
             payload
         ))
+
+    def get_ring_buffer_data(self):
+        self.ep_out.write(KBConfig.prepare_message(
+            KB_CONFIG_MSG_GET_RING_BUFFER_DATA | KB_CONFIG_MSG_TYPE_REQ,
+            bytearray([])
+        ))
+
+        message = self.wait_for_message()
+        assert(message.message_type == KB_CONFIG_MSG_GET_RING_BUFFER_DATA | KB_CONFIG_MSG_TYPE_RES)
+        return message.data, message.length
