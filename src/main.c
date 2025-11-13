@@ -5,6 +5,7 @@
  */
 
 #include "pico/stdlib.h"
+#include "hardware/sync.h"
 
 #include "usb_common.h"
 #include "matrix.h"
@@ -12,13 +13,18 @@
 #include "kb_config.h"
 #include "leds.h"
 
-static repeating_timer_t matrix_scan_timer = {0};
+static repeating_timer_t update_timer = {0};
+static bool update_time_elapsed = false;
 
-static bool matrix_scan_timer_cb(repeating_timer_t *rt) {
+static bool update_timer_callback(repeating_timer_t *rt) {
+    update_time_elapsed = true;
+    return true;
+}
+
+static void run_keyboard_update(void) {
     matrix_scan();
     usb_update();
     leds_write();
-    return true;
 }
 
 int main(void) {
@@ -35,9 +41,13 @@ int main(void) {
     usb_wait_for_device_to_configured();
 
     // After we're configured, setup a repeating timer for scanning the key matrix
-    add_repeating_timer_ms(-MATRIX_SCAN_INTERVAL_MS, matrix_scan_timer_cb, NULL, &matrix_scan_timer);
+    add_repeating_timer_ms(-MATRIX_SCAN_INTERVAL_MS, update_timer_callback, NULL, &update_timer);
 
     while (1) {
-        tight_loop_contents();
+        if (update_time_elapsed) {
+            update_time_elapsed = false;
+            run_keyboard_update();
+        }
+        __wfi();
     }
 }

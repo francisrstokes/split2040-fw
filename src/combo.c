@@ -221,7 +221,7 @@ bool combo_update(void) {
     bool there_are_unresolved_combos = false;
 
     for (uint combo_index = 0; combo_index < COMBO_MAX; combo_index++) {
-        if (combos[combo_index].state == combo_state_invalid) break;
+        if (combos[combo_index].state == combo_state_invalid) continue;
         if (combos[combo_index].state == combo_state_inactive) continue;
 
         if (combos[combo_index].state == combo_state_cooldown) {
