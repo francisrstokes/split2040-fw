@@ -6,8 +6,12 @@ on:
   pull_request:
 
 env:
-  # Pinned to match local dev setup: SDK 2.2.0 Release
-  PICO_SDK_TAG: 2.2.0
+  # Pinned to match local dev setup: SDK 2.2.0 Release (commit a1438df)
+  PICO_SDK_TAG: "2.2.0"
+
+permissions:
+  contents: read
+  pull-requests: write   # needed so the coverage report can comment on PRs
 
 jobs:
   build-firmware:
@@ -74,8 +78,33 @@ jobs:
             gcc-arm-none-eabi \
             libnewlib-arm-none-eabi \
             libstdc++-arm-none-eabi-newlib \
-            autoconf automake libtool
+            autoconf automake libtool lcov
 
       - name: Build and run unit tests
         working-directory: tests
         run: make all
+
+      - name: Capture coverage
+        working-directory: tests
+        run: |
+          lcov --capture --directory test-obj --base-directory . --output-file coverage.info --ignore-errors mismatch
+          lcov --remove coverage.info '/usr/*' '*/cpputest/*' --output-file coverage.info
+
+      - name: Generate HTML report
+        working-directory: tests
+        run: genhtml coverage.info --output-directory coverage-report
+
+      - name: Upload HTML coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: tests/coverage-report/
+
+      - name: Comment coverage on PR
+        if: github.event_name == 'pull_request'
+        uses: zgosalvez/github-actions-report-lcov@v4
+        with:
+          coverage-files: tests/coverage.info
+          minimum-coverage: 0
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          working-directory: tests

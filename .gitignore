@@ -4,7 +4,9 @@ generated/
 .vscode/
 __pycache__/
 
-test-obj/
-test-lib/
-usb_keyboard_firmware_tests
+tests/test-obj/
+tests/test-lib/
+tests/usb_keyboard_firmware_tests
+tests/coverage.info
+tests/coverage-report
 *.d

@@ -3,6 +3,7 @@ SILENCE = @
 
 #---- Outputs ----#
 COMPONENT_NAME = usb_keyboard_firmware
+TESTS_NAME = $(COMPONENT_NAME)_tests
 
 CPPUTEST_HOME = cpputest
 
@@ -115,6 +116,8 @@ CPPUTEST_CXXFLAGS += -Wno-c++98-compat
 # Coloroze output
 CPPUTEST_EXE_FLAGS += -c
 
+CPPUTEST_USE_GCOV=Y
+
 # --- LD_LIBRARIES -- Additional needed libraries can be added here.
 # commented out example specifies math library
 #LD_LIBRARIES += -lm
@@ -133,3 +136,12 @@ $(CPPUTEST_LIB):
 	cd $(CPPUTEST_HOME) && test -f configure || autoreconf -i
 	cd $(CPPUTEST_HOME) && test -f Makefile || ./configure
 	$(MAKE) -C $(CPPUTEST_HOME)
+
+coverage:
+	lcov --capture --directory test-obj --base-directory . --output-file coverage.info
+	lcov --remove coverage.info '/usr/*' '*/cpputest/*' -o coverage.info   # drop noise
+	genhtml coverage.info --output-directory coverage-report
+
+clean-all:
+	rm -rf coverage-report coverage.info
+	$(MAKE) clean
