@@ -3,3 +3,10 @@ release/
 generated/
 .vscode/
 __pycache__/
+
+tests/test-obj/
+tests/test-lib/
+tests/usb_keyboard_firmware_tests
+tests/coverage.info
+tests/coverage-report
+*.d

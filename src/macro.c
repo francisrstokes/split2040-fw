@@ -16,6 +16,10 @@ static void macro_start(uint index) {
             case macro_type_send_string: {
                 macros[index].send_string.index = 0;
             } break;
+
+            case macro_type_unused: {
+                // Do nothing
+            }
         }
     }
 }
@@ -57,7 +61,7 @@ bool macro_on_key_release(uint row, uint col, keymap_entry_t key) {
 }
 
 bool macro_on_virtual_key(keymap_entry_t key) {
-    macro_on_key_press(0xff, 0xff, key);
+    return macro_on_key_press(0xff, 0xff, key);
 }
 
 bool macro_update(void) {
@@ -95,8 +99,14 @@ bool macro_update(void) {
                 if (++macros[macro_index].send_string.index >= (macros[macro_index].send_string.length - 1)) {
                     macros[macro_index].active = false;
                     macro_check_any_active();
+                } else {
+                    any_macro_active = true;
                 }
             } break;
+
+            case macro_type_unused: {
+                // Do nothing
+            }
         }
     }
 
