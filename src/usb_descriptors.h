@@ -16,10 +16,13 @@
 #define EP1_IN_ADDR     (USB_DIR_IN  | 1)   // Keyboard
 #define EP2_IN_ADDR     (USB_DIR_IN  | 2)   // Consumer Control
 #define EP3_IN_ADDR     (USB_DIR_IN  | 3)   // Mouse
+#define EP4_IN_ADDR     (USB_DIR_IN  | 4)   // Bulk Data
+#define EP4_OUT_ADDR    (USB_DIR_OUT | 4)   // Bulk Data
 
 #define KB_INTERFACE    (0)
 #define CC_INTERFACE    (1)
 #define MOUSE_INTERFACE (2)
+#define DATA_INTERFACE  (3)
 
 // Public functions
 const struct usb_endpoint_descriptor* usb_get_ep0_out_descriptor(void);
@@ -41,11 +44,14 @@ const struct usb_endpoint_descriptor* usb_get_ep2_in_descriptor(void);
 const struct usb_interface_descriptor* usb_get_cc_interface_descriptor(void);
 const struct usb_hid_descriptor* usb_get_cc_hid_descriptor(void);
 
-
 const uint8_t* usb_get_hid_mouse_report_descriptor(void);
 uint32_t usb_get_hid_mouse_report_descriptor_size(void);
 const struct usb_endpoint_descriptor* usb_get_ep3_in_descriptor(void);
 const struct usb_interface_descriptor* usb_get_mouse_interface_descriptor(void);
 const struct usb_hid_descriptor* usb_get_mouse_hid_descriptor(void);
+
+const struct usb_endpoint_descriptor* usb_get_ep4_in_descriptor(void);
+const struct usb_endpoint_descriptor* usb_get_ep4_out_descriptor(void);
+const struct usb_interface_descriptor* usb_get_kb_config_interface_descriptor(void);
 
 #endif

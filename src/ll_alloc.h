@@ -28,3 +28,4 @@ void lla_init(ll_allocator_t* alloc, void* data_block, ll_node_t* node_block, ui
 ll_node_t* lla_alloc_head(ll_allocator_t* alloc);
 ll_node_t* lla_alloc_tail(ll_allocator_t* alloc);
 void lla_free(ll_allocator_t* alloc, ll_node_t* n);
+void lla_free_all(ll_allocator_t* alloc);

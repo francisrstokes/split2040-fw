@@ -6,6 +6,7 @@
 
 #include "combo.h"
 #include "matrix.h"
+#include "log.h"
 
 #include <string.h>
 
@@ -133,6 +134,17 @@ void combo_init(combo_t* combo_table) {
     combos = combo_table;
 }
 
+void combo_reset(void) {
+    for (uint combo_index = 0; combo_index < COMBO_MAX; combo_index++) {
+        if (combos[combo_index].state == combo_state_invalid) continue;
+
+        combos[combo_index].state = combo_state_inactive;
+        memset(combos[combo_index].key_positions, 0xff, sizeof(combos[combo_index].key_positions));
+        combos[combo_index].time_since_first_press = 0;
+        combos[combo_index].keys_pressed_bitmask = 0;
+    }
+}
+
 bool combo_on_key_press(uint row, uint col, keymap_entry_t key) {
     bool was_handled = false;
     int combo_index = combo_find_next_with_key(0, key);
@@ -158,6 +170,10 @@ bool combo_on_key_press(uint row, uint col, keymap_entry_t key) {
             }
 
             if (combo_is_complete(combo_index)) {
+                log_str("Combo ");
+                log_hex(combo_index, true);
+                log_str("\n");
+
                 keyboard_send_key(combos[combo_index].key_out);
                 combos[combo_index].state = combo_state_wait_for_all_released;
 
@@ -219,7 +235,7 @@ bool combo_update(void) {
     bool there_are_unresolved_combos = false;
 
     for (uint combo_index = 0; combo_index < COMBO_MAX; combo_index++) {
-        if (combos[combo_index].state == combo_state_invalid) break;
+        if (combos[combo_index].state == combo_state_invalid) continue;
         if (combos[combo_index].state == combo_state_inactive) continue;
 
         if (combos[combo_index].state == combo_state_cooldown) {

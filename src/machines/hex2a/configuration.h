@@ -12,7 +12,7 @@
 }
 
 // Matrix
-#define MATRIX_SCAN_INTERVAL_MS     (10)
+#define MATRIX_SCAN_INTERVAL_MS     (5)
 #define MATRIX_ROWS                 (4)
 #define MATRIX_COLS                 (12)
 #define MATRIX_SETTLE_ITERATIONS    (50)
@@ -20,7 +20,7 @@
 // USB
 #define USB_VID                     (0x7083)
 #define USB_PID                     (0x0003)
-#define USB_REPORT_INTERVAL         (10)
+#define USB_REPORT_INTERVAL         MATRIX_SCAN_INTERVAL_MS
 #define USB_VENDOR_STRING           "Francis Stokes"
 #define USB_PRODUCT_STRING          "Hex-2a Split Keyboard"
 
@@ -52,6 +52,7 @@
 
 // Macros
 #define MACRO_MAX                   (8)
+#define MACRO_SIZE_MAX              (32)
 
 // LEDs
 #define LEDS_WS2812_PIN             (28)

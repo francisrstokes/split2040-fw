@@ -20,10 +20,15 @@
 #include "usb_descriptors.h"
 #include "matrix.h"
 #include "keyboard.h"
+#include "kb_config.h"
 #include "leds.h"
 
 #define usb_hw_set ((usb_hw_t *)hw_set_alias_untyped(usb_hw))
 #define usb_hw_clear ((usb_hw_t *)hw_clear_alias_untyped(usb_hw))
+
+#define GET_DPRAM_BUFFER(n)                 (&(usb_dpram->epx_data[n * 64]))
+#define GET_EP_CTRL_REG(ep_num, inout)      (&usb_dpram->ep_ctrl[ep_num - 1].inout)
+#define GET_BUF_CTRL_REG(ep_num, inout)     (&usb_dpram->ep_buf_ctrl[ep_num].inout)
 
 // Typedefs
 typedef enum ep_transfer_state_t {
@@ -56,9 +61,23 @@ typedef struct endpoint_zero_state_t {
     endpoint_t out;
 } endpoint_zero_state_t;
 
+typedef struct kb_config_ep_state_t {
+    endpoint_t in;
+    endpoint_t out;
+
+    void (*on_rx_complete)(void);
+    void (*on_tx_complete)(void);
+} kb_config_ep_state_t;
+
 // Function prototypes for our device specific endpoint handlers defined later on
 static void ep0_in_handler(void);
 static void ep0_out_handler(void);
+static void ep4_in_handler(void);
+static void ep4_out_handler(void);
+
+// Function prototypes for transmitting and receiving on the keyboard configuration endpoint
+static void usb_tx_kb_config(uint8_t* buffer, uint16_t len);
+static void usb_rx_kb_config(uint8_t* buffer, uint16_t len);
 
 // Global device address
 static volatile bool configured_by_host = false;
@@ -66,7 +85,7 @@ static volatile bool configured_by_host = false;
 static endpoint_zero_state_t ep0 = {
     .setup_packet = {0},
     .out = {
-        .buffer_control = &usb_dpram->ep_buf_ctrl[0].out,
+        .buffer_control = GET_BUF_CTRL_REG(0, out),
         .endpoint_control = NULL,
         .data_buffer = &usb_dpram->ep0_buf_a[0],
         .descriptor = NULL,
@@ -79,7 +98,7 @@ static endpoint_zero_state_t ep0 = {
         .transfer = ep_transfer_state_idle
     },
     .in = {
-        .buffer_control = &usb_dpram->ep_buf_ctrl[0].in,
+        .buffer_control = GET_BUF_CTRL_REG(0, in),
         .endpoint_control = NULL,
         .data_buffer = &usb_dpram->ep0_buf_a[0],
         .descriptor = NULL,
@@ -94,9 +113,9 @@ static endpoint_zero_state_t ep0 = {
 };
 
 static endpoint_t ep_kb_in = {
-    .buffer_control = &usb_dpram->ep_buf_ctrl[1].in,
-    .endpoint_control = &usb_dpram->ep_ctrl[0].in,
-    .data_buffer = &usb_dpram->epx_data[0],
+    .buffer_control = GET_BUF_CTRL_REG(1, in),
+    .endpoint_control = GET_EP_CTRL_REG(1, in),
+    .data_buffer = GET_DPRAM_BUFFER(0),
     .descriptor = NULL,
     .next_pid = 0,
     .data = {
@@ -108,20 +127,39 @@ static endpoint_t ep_kb_in = {
 };
 
 static endpoint_t ep_cc_in = {
-    .buffer_control = &usb_dpram->ep_buf_ctrl[2].in,
-    .endpoint_control = &usb_dpram->ep_ctrl[1].in,
-    // The Keyboard interrupt only needs 8 bytes, but each data buffer slot has to be aligned to 64 bytes
-    .data_buffer = &(usb_dpram->epx_data[64]),
+    .buffer_control = GET_BUF_CTRL_REG(2, in),
+    .endpoint_control = GET_EP_CTRL_REG(2, in),
+    .data_buffer = GET_DPRAM_BUFFER(1),
     .descriptor = NULL,
     .next_pid = 0
 };
 
 static endpoint_t ep_mouse_in = {
-    .buffer_control = &usb_dpram->ep_buf_ctrl[3].in,
-    .endpoint_control = &usb_dpram->ep_ctrl[2].in,
-    .data_buffer = &(usb_dpram->epx_data[128]),
+    .buffer_control = GET_BUF_CTRL_REG(3, in),
+    .endpoint_control = GET_EP_CTRL_REG(3, in),
+    .data_buffer = GET_DPRAM_BUFFER(2),
     .descriptor = NULL,
     .next_pid = 0
+};
+
+static kb_config_ep_state_t kb_config = {
+    .in = {
+        .buffer_control = GET_BUF_CTRL_REG(4, in),
+        .endpoint_control = GET_EP_CTRL_REG(4, in),
+        .data_buffer = GET_DPRAM_BUFFER(3),
+        .descriptor = NULL,
+        .next_pid = 0
+    },
+    .out = {
+        .buffer_control = GET_BUF_CTRL_REG(4, out),
+        .endpoint_control = GET_EP_CTRL_REG(4, out),
+        .data_buffer = GET_DPRAM_BUFFER(4),
+        .descriptor = NULL,
+        .next_pid = 0
+    },
+
+    .on_rx_complete = NULL,
+    .on_tx_complete = NULL,
 };
 
 static uint8_t multi_packet_buffer[1024] = {0};
@@ -163,6 +201,15 @@ static void usb_setup_endpoints(void) {
     ep_kb_in.descriptor = usb_get_ep1_in_descriptor();
     ep_cc_in.descriptor = usb_get_ep2_in_descriptor();
     ep_mouse_in.descriptor = usb_get_ep3_in_descriptor();
+    kb_config.in.descriptor = usb_get_ep4_in_descriptor();
+    kb_config.out.descriptor = usb_get_ep4_out_descriptor();
+
+    // Get callback pointers for the keyboard config endpoints
+    kb_config_bulk_ptrs_t* config_ptrs = kb_config_get_bulk_ptrs();
+    kb_config.on_rx_complete = config_ptrs->rx_complete;
+    kb_config.on_tx_complete = config_ptrs->tx_complete;
+    config_ptrs->rx = usb_rx_kb_config;
+    config_ptrs->tx = usb_tx_kb_config;
 
     // Set up the keyboard report endpoint
     uint32_t dpram_offset = (uint32_t)ep_kb_in.data_buffer ^ (uint32_t)usb_dpram;
@@ -190,6 +237,23 @@ static void usb_setup_endpoints(void) {
                    | dpram_offset;
 
     *ep_mouse_in.endpoint_control = reg;
+
+    // Set up the keyboard configuration endpoints
+    dpram_offset = (uint32_t)kb_config.in.data_buffer ^ (uint32_t)usb_dpram;
+    reg = EP_CTRL_ENABLE_BITS
+                   | EP_CTRL_INTERRUPT_PER_BUFFER
+                   | (kb_config.in.descriptor->bmAttributes << EP_CTRL_BUFFER_TYPE_LSB)
+                   | dpram_offset;
+
+    *kb_config.in.endpoint_control = reg;
+
+    dpram_offset = (uint32_t)kb_config.out.data_buffer ^ (uint32_t)usb_dpram;
+    reg = EP_CTRL_ENABLE_BITS
+                   | EP_CTRL_INTERRUPT_PER_BUFFER
+                   | (kb_config.out.descriptor->bmAttributes << EP_CTRL_BUFFER_TYPE_LSB)
+                   | dpram_offset;
+
+    *kb_config.out.endpoint_control = reg;
 }
 
 static inline bool ep_is_tx(endpoint_t* ep) {
@@ -246,9 +310,11 @@ static void usb_read_data(endpoint_t* ep) {
     ep->transfer = ep_transfer_state_data;
 
     uint32_t buf_ctrl_val = usb_ep_get_next_pid(ep) | USB_BUF_CTRL_AVAIL;
+    uint32_t bytes_in_this_packet = MIN((ep->data.bytes_total - ep->data.bytes_transferred), ep->descriptor->wMaxPacketSize);
+    buf_ctrl_val |= bytes_in_this_packet;
 
-    // TODO: Handle multi-packet RX
-    buf_ctrl_val |= ep->data.bytes_total;
+    // Copy into the USB DPSRAM
+    memcpy((void*)ep->data_buffer, (void*)(ep->data.current_buffer + ep->data.bytes_transferred), bytes_in_this_packet);
 
     // Queue the transfer
     *ep->buffer_control = buf_ctrl_val;
@@ -262,6 +328,24 @@ static void usb_send_zlp(void) {
 static void usb_receive_zlp(void) {
     ep0.in.transfer = ep_transfer_state_status;
     *ep0.out.buffer_control = usb_ep_get_next_pid(&ep0.out) | USB_BUF_CTRL_AVAIL;
+}
+
+static void usb_rx_kb_config(uint8_t* buffer, uint16_t len) {
+    kb_config.out.data = (ep_data_state_t) {
+        .current_buffer = buffer,
+        .bytes_total = len,
+        .bytes_transferred = 0
+    };
+    usb_read_data(&kb_config.out);
+}
+
+static void usb_tx_kb_config(uint8_t* buffer, uint16_t len) {
+    kb_config.in.data = (ep_data_state_t) {
+        .current_buffer = buffer,
+        .bytes_total = len,
+        .bytes_transferred = 0
+    };
+    usb_write_data(&kb_config.in);
 }
 
 static void usb_handle_device_descriptor(volatile struct usb_setup_packet *pkt) {
@@ -323,6 +407,19 @@ static void usb_handle_config_descriptor(volatile struct usb_setup_packet *pkt) 
         len += sizeof(struct usb_hid_descriptor);
 
         memcpy((void *)buf, ep_mouse_in.descriptor, sizeof(struct usb_endpoint_descriptor));
+        buf += sizeof(struct usb_endpoint_descriptor);
+        len += sizeof(struct usb_endpoint_descriptor);
+
+        // The interface and endpoints for keyboard configuration data
+        memcpy((void *)buf, usb_get_kb_config_interface_descriptor(), sizeof(struct usb_interface_descriptor));
+        buf += sizeof(struct usb_interface_descriptor);
+        len += sizeof(struct usb_interface_descriptor);
+
+        memcpy((void *)buf, kb_config.in.descriptor, sizeof(struct usb_endpoint_descriptor));
+        buf += sizeof(struct usb_endpoint_descriptor);
+        len += sizeof(struct usb_endpoint_descriptor);
+
+        memcpy((void *)buf, kb_config.out.descriptor, sizeof(struct usb_endpoint_descriptor));
         buf += sizeof(struct usb_endpoint_descriptor);
         len += sizeof(struct usb_endpoint_descriptor);
     }
@@ -400,17 +497,22 @@ static void usb_handle_get_protocol(volatile struct usb_setup_packet *pkt) {
     usb_write_data(&ep0.in);
 }
 
-static void usb_bus_reset(void) {
-    // Set address back to 0
-    usb_hw->dev_addr_ctrl = 0;
+static void usb_reset_endpoint_state(void) {
     ep0.in.next_pid = 0;
     ep0.out.next_pid = 0;
-    ep0.in.transfer = ep_transfer_state_idle;
-    ep0.out.transfer = ep_transfer_state_idle;
     ep_kb_in.next_pid = 0;
     ep_cc_in.next_pid = 0;
     ep_mouse_in.next_pid = 0;
+
+    ep0.in.transfer = ep_transfer_state_idle;
+    ep0.out.transfer = ep_transfer_state_idle;
+}
+
+static void usb_bus_reset(void) {
+    usb_hw->dev_addr_ctrl = 0;
     configured_by_host = false;
+    usb_reset_endpoint_state();
+    keyboard_reset();
 }
 
 static void usb_handle_string_descriptor(volatile struct usb_setup_packet *pkt) {
@@ -526,6 +628,16 @@ static void usb_handle_buff_status() {
     if (buffers & USB_BUFF_CPU_SHOULD_HANDLE_EP3_IN_BITS) {
         usb_hw_clear->buf_status = USB_BUFF_CPU_SHOULD_HANDLE_EP3_IN_BITS;
     }
+
+    if (buffers & USB_BUFF_CPU_SHOULD_HANDLE_EP4_IN_BITS) {
+        usb_hw_clear->buf_status = USB_BUFF_CPU_SHOULD_HANDLE_EP4_IN_BITS;
+        ep4_in_handler();
+    }
+
+    if (buffers & USB_BUFF_CPU_SHOULD_HANDLE_EP4_OUT_BITS) {
+        usb_hw_clear->buf_status = USB_BUFF_CPU_SHOULD_HANDLE_EP4_OUT_BITS;
+        ep4_out_handler();
+    }
 }
 
 
@@ -632,6 +744,53 @@ static void ep0_out_handler(void) {
 
     if (!in_handled && !out_handled) {
         ep0.out.transfer = ep_transfer_state_idle;
+    }
+}
+
+void ep4_in_handler(void) {
+    if (kb_config.in.transfer == ep_transfer_state_data) {
+        uint16_t bytes_remaining = kb_config.in.data.bytes_total - kb_config.in.data.bytes_transferred;
+
+        // We don't accumulate the transferred count until the buffer completes, so do that now
+        kb_config.in.data.bytes_transferred += MIN(bytes_remaining, kb_config.in.descriptor->wMaxPacketSize);
+        bytes_remaining = kb_config.in.data.bytes_total - kb_config.in.data.bytes_transferred;
+
+        // Is there more data to send?
+        if (bytes_remaining > 0) {
+            // Queue the next data buffer
+            usb_write_data(&kb_config.in);
+        } else {
+            // Transfer finished, alert sender
+            if (kb_config.on_tx_complete != NULL) {
+                kb_config.on_tx_complete();
+            }
+        }
+    }
+}
+
+void ep4_out_handler(void) {
+    if (kb_config.out.transfer == ep_transfer_state_data) {
+        uint16_t bytes_remaining = kb_config.out.data.bytes_total - kb_config.out.data.bytes_transferred;
+        uint16_t bytes_in_this_transfer = MIN(bytes_remaining, kb_config.out.descriptor->wMaxPacketSize);
+        uint8_t* buffer_ptr = kb_config.out.data.current_buffer + kb_config.out.data.bytes_transferred;
+
+        // Copy the received data into the user-provided buffer
+        memcpy(buffer_ptr, kb_config.out.data_buffer, bytes_in_this_transfer);
+
+        // We don't accumulate the transferred count until the buffer completes, so do that now
+        kb_config.out.data.bytes_transferred += bytes_in_this_transfer;
+        bytes_remaining = kb_config.out.data.bytes_total - bytes_in_this_transfer;
+
+        // Is there more data to send?
+        if (bytes_remaining > 0) {
+            // Queue the next data buffer
+            usb_read_data(&kb_config.out);
+        } else {
+            // Transfer finished, alert sender
+            if (kb_config.on_rx_complete != NULL) {
+                kb_config.on_rx_complete();
+            }
+        }
     }
 }
 

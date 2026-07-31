@@ -59,6 +59,10 @@ void layers_set(uint8_t layer) {
     layer_post_set(layer);
 }
 
+void layers_reset(void) {
+    layers_set(layer_state.base);
+}
+
 __attribute__((weak)) void layer_post_set(uint8_t layer) {
 
 }

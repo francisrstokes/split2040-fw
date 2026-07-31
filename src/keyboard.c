@@ -20,16 +20,17 @@
 #include "pico/stdlib.h"
 #include "pico/bootrom.h"
 
+// externs
+extern combo_t combos[COMBO_MAX];
+extern macro_t macros[MACRO_MAX];
+extern const keymap_entry_t keymap[LAYER_MAX][MATRIX_ROWS][MATRIX_COLS];
+
 // statics
 static uint8_t* keyboard_hid_report_ref = NULL;
 static uint16_t* cc_hid_report_ref = NULL;
 static mouse_report_t* mouse_hid_report_ref = NULL;
 static uint8_t report_press_count = 0;
-
-// externs
-extern combo_t combos[COMBO_MAX];
-extern macro_t macros[MACRO_MAX];
-extern const keymap_entry_t keymap[LAYER_MAX][MATRIX_ROWS][MATRIX_COLS];
+static const keymap_entry_t (*keymap_ptr)[LAYER_MAX][MATRIX_ROWS][MATRIX_COLS] = &keymap;
 
 // private functions
 static void keyboard_handle_remaining_presses(void) {
@@ -124,6 +125,16 @@ void keyboard_init(uint8_t* keyboard_hid_report, uint16_t* cc_hid_report, mouse_
 
     // Set the initial layer
     layers_set(LAYER_QWERTY);
+}
+
+void keyboard_reset(void) {
+    combo_reset();
+    taphold_reset();
+    macro_reset();
+    mouse_reset();
+    leds_reset();
+    layers_reset();
+    matrix_reset();
 }
 
 bool keyboard_send_key(keymap_entry_t key) {
@@ -226,9 +237,9 @@ void keyboard_post_scan(void) {
 keymap_entry_t keyboard_resolve_key(uint row, uint col) {
     if (row >= MATRIX_ROWS || col >= MATRIX_COLS) return KC_NONE;
 
-    keymap_entry_t key = keymap[layers_get_current()][row][col];
+    keymap_entry_t key = (*keymap_ptr)[layers_get_current()][row][col];
     if (key == KC_TRANS) {
-        key = keymap[layers_get_base()][row][col];
+        key = (*keymap_ptr)[layers_get_base()][row][col];
     }
 
     return key;
@@ -237,9 +248,9 @@ keymap_entry_t keyboard_resolve_key(uint row, uint col) {
 keymap_entry_t keyboard_resolve_key_on_layer(uint row, uint col, uint layer) {
     if (row >= MATRIX_ROWS || col >= MATRIX_COLS || layer >= LAYER_MAX) return KC_NONE;
 
-    keymap_entry_t key = keymap[layer][row][col];
+    keymap_entry_t key = (*keymap_ptr)[layer][row][col];
     if (key == KC_TRANS) {
-        key = keymap[layers_get_base()][row][col];
+        key = (*keymap_ptr)[layers_get_base()][row][col];
     }
 
     return key;
@@ -247,6 +258,10 @@ keymap_entry_t keyboard_resolve_key_on_layer(uint row, uint col, uint layer) {
 
 uint8_t keyboard_get_current_layer(void) {
     return layers_get_current();
+}
+
+void keyboard_set_keymap_ptr(void* new_keymap) {
+    keymap_ptr = new_keymap;
 }
 
 // weak functions
