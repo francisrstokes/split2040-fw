@@ -122,3 +122,14 @@ CPPUTEST_EXE_FLAGS += -c
 # Look at $(CPPUTEST_HOME)/build/MakefileWorker.mk for more controls
 
 include $(CPPUTEST_HOME)/build/MakefileWorker.mk
+
+# --- Build CppUTest itself if its static lib isn't there yet ---
+# (handles both a fresh submodule checkout and your existing local build)
+CPPUTEST_LIB = $(CPPUTEST_HOME)/lib/libCppUTest.a
+
+all: $(CPPUTEST_LIB)
+
+$(CPPUTEST_LIB):
+	cd $(CPPUTEST_HOME) && test -f configure || autoreconf -i
+	cd $(CPPUTEST_HOME) && test -f Makefile || ./configure
+	$(MAKE) -C $(CPPUTEST_HOME)
