@@ -75,16 +75,20 @@ void leds_set_b(uint led_index, uint8_t value) {
 }
 
 void leds_write(void) {
+#ifdef LEDS_ENABLE
     if (leds_state.should_transmit) {
         for (uint i = 0; i < LEDS_MAX; i++) {
             ws2812_write(LED_TO_U32(LEDS_INDEX_REMAP(i)));
         }
     }
+#endif
     leds_state.should_transmit = false;
 }
 
 void leds_init(void) {
+#ifdef LEDS_ENABLE
     ws2812_init();
+#endif
 
 #ifdef LEDS_HAS_DEBUG_LED
     gpio_init(LEDS_DEBUG_LED_PIN);

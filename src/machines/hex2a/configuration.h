@@ -55,6 +55,7 @@
 #define MACRO_SIZE_MAX              (32)
 
 // LEDs
+#define LEDS_ENABLE
 #define LEDS_WS2812_PIN             (28)
 #define LEDS_MAX                    (2)
 #define LEDS_BRIGHTNESS_DELTA       (16)
