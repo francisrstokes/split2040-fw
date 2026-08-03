@@ -6,10 +6,24 @@
 
 #include "matrix.h"
 #include "keyboard.h"
+#include "split.h"
 
 #include <string.h>
 
 #include "pico/stdlib.h"
+
+// defines
+#ifdef SPLIT_ENABLE
+    #define COLS_TO_SCAN    (SPLIT_COLS)
+    #ifdef SPLIT_CONTROLLER
+        #define COL_SHIFT       (SPLIT_COL_SHIFT_CONTROLLER)
+    #else
+        #define COL_SHIFT       (SPLIT_COL_SHIFT_TARGET)
+#endif
+#else
+    #define COLS_TO_SCAN    (MATRIX_COLS)
+    #define COL_SHIFT       (0)
+#endif
 
 // statics
 static uint32_t prev_pressed_bitmap[MATRIX_ROWS] = {0};
@@ -33,7 +47,7 @@ static inline void matrix_settle_delay(void) {
 // public functions
 void matrix_init(void) {
     // Scan asserts a high on a column and reads back the rows
-    for (uint i = 0; i < MATRIX_COLS; i++) {
+    for (uint i = 0; i < COLS_TO_SCAN; i++) {
         gpio_init(matrix_cols[i]);
         gpio_set_dir(matrix_cols[i], GPIO_OUT);
         gpio_put(matrix_cols[i], false);
@@ -68,7 +82,7 @@ void matrix_scan(void) {
     memset(released_this_scan_bitmap, 0, sizeof(released_this_scan_bitmap));
 
     // Scan each column in turn, reading back the rows
-    for (uint col = 0; col < MATRIX_COLS; col++) {
+    for (uint col = 0; col < COLS_TO_SCAN; col++) {
         // Assert the column
         gpio_put(matrix_cols[col], true);
         matrix_settle_delay();
@@ -76,7 +90,7 @@ void matrix_scan(void) {
         // Scan the rows
         for (uint row = 0; row < MATRIX_ROWS; row++) {
             if (gpio_get(matrix_rows[row])) {
-                pressed_bitmap[row] |= (1 << col);
+                pressed_bitmap[row] |= (1 << (col + COL_SHIFT));
             }
         }
 
@@ -85,6 +99,13 @@ void matrix_scan(void) {
         matrix_settle_delay();
     }
 
+#if defined(SPLIT_ENABLE) && SPLIT_CONTROLLER
+    // If in split mode, pull in the latest known keys
+    for (uint row = 0; row < MATRIX_ROWS; row++) {
+        pressed_bitmap[row] |= split_get_target_row(row);
+    }
+#endif
+
     // Compute the deltas
     for (uint row = 0; row < MATRIX_ROWS; row++) {
         pressed_this_scan_bitmap[row] = ~prev_pressed_bitmap[row] & pressed_bitmap[row];
@@ -92,8 +113,10 @@ void matrix_scan(void) {
         suppressed_until_release[row] &= ~released_this_scan_bitmap[row];
     }
 
+#if !defined (SCAN_ONLY_MODE)
     // Once the scan is complete, hand off to the keyboard to process the key presses
     keyboard_post_scan();
+#endif
 }
 
 bool matrix_key_pressed(uint32_t row, uint32_t col, bool also_when_handled) {

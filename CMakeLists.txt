@@ -30,6 +30,7 @@ function(add_keyboard_target NAME)
         src/mouse.c
         src/kb_config.c
         src/log.c
+        src/split.c
 
         # Specific keyboards
         src/machines/hex2a/machine.c
@@ -49,6 +50,7 @@ function(add_keyboard_target NAME)
         hardware_irq
         hardware_pio
         hardware_flash
+        hardware_i2c
         )
 
     pico_generate_pio_header(${NAME} ${CMAKE_CURRENT_LIST_DIR}/src/ws2812.pio OUTPUT_DIR generated)
