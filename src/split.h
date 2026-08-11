@@ -13,38 +13,13 @@
 #define SCAN_ONLY_MODE
 #endif
 
-// defines
-#define SPL_I2C_IDLE                    (0)
-#define SPL_I2C_WRITE_IN_PROGRESS       (1U << 0U)
-#define SPL_I2C_READ_IN_PROGRESS        (1U << 1U)
-#define SPL_I2C_OPERATION_IN_PROGRESS   (SPL_I2C_WRITE_IN_PROGRESS | SPL_I2C_READ_IN_PROGRESS)
-
 // typedefs
-typedef struct split_i2c_target_t {
-    uint32_t state;
-    uint8_t address;
-    bool read_started;
-} split_i2c_target_t;
-
-typedef struct split_i2c_controller_t {
-    bool read_ready;
-    uint32_t keys[MATRIX_ROWS];
-} split_i2c_controller_t;
-
-typedef enum split_uart_controller_state_t {
-    split_uart_controller_state_wait_sync = 0,
-    split_uart_controller_state_rx_keys,
-
-    split_uart_controller_state_max
-} split_uart_controller_state_t;
-
-typedef struct split_uart_t {
-    split_uart_controller_state_t state;
-    uint8_t rx_buffer[4];
-    uint32_t keys[MATRIX_ROWS];
-    uint8_t row;
-    uint8_t byte_offset;
-} split_uart_t;
+typedef struct split_impl_t {
+    void (*init)(void);
+    void (*scan_complete)(void);
+    void (*update)(void);
+    uint32_t (*get_target_row)(uint row);
+} split_impl_t;
 
 // public functions
 void split_init(void);
