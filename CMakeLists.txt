@@ -33,6 +33,10 @@ function(add_keyboard_target NAME)
         src/split.c
         src/pio_uart.c
 
+        # Split implementations
+        src/split_impl/i2c.c
+        src/split_impl/pio_uart.c
+
         # Specific keyboards
         src/machines/hex2a/machine.c
         src/machines/split2040/machine.c
