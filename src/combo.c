@@ -197,10 +197,15 @@ bool combo_on_key_release(uint row, uint col, keymap_entry_t key) {
         int key_index = combo_get_key_index(combo_index, key);
 
         if (combos[combo_index].state == combo_state_cooldown) {
-            // Ignore keys while in cooldown
+            // We still need to keep track of which keys were released during a cooldown period
+            combos[combo_index].keys_pressed_bitmask &= ~(1 << key_index);
         } else if (combos[combo_index].state == combo_state_wait_for_all_released) {
-            // Handle release checks in the update phase, as they might be missed if the event
-            // is given to the thing that this combo triggered
+            combos[combo_index].keys_pressed_bitmask &= ~(1 << key_index);
+
+            // If all the keys are released this combo can return to inactive
+            if (combos[combo_index].keys_pressed_bitmask == 0) {
+                combos[combo_index].state = combo_state_inactive;
+            }
         } else if (combos[combo_index].state == combo_state_single_held) {
             combos[combo_index].state = combo_state_inactive;
         } else {
@@ -249,11 +254,6 @@ bool combo_update(void) {
         } else if (combos[combo_index].state == combo_state_wait_for_all_released) {
             // This is handled by press and release events
             combo_mark_keys_as_handled(combo_index);
-
-            // Check if all of the keys in this combo have actually been released already
-            if (combo_have_all_keys_been_released(combo_index)) {
-                combos[combo_index].state = combo_state_inactive;
-            }
         } else if (combos[combo_index].state == combo_state_active) {
             there_are_unresolved_combos = true;
 
