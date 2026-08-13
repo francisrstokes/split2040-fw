@@ -67,3 +67,10 @@ endfunction()
 # Keyboards
 add_keyboard_target(hex2a       KEYBOARD_HEX2A)
 add_keyboard_target(split2040   KEYBOARD_SPLIT2040)
+
+# Run unit tests (built and run via the CppUTest Makefile in tests/)
+enable_testing()
+add_test(
+    NAME unit_tests
+    COMMAND make -C ${CMAKE_CURRENT_LIST_DIR}/tests CPPUTEST_USE_GCOV=Y -j8 all
+)
