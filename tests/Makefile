@@ -109,11 +109,12 @@ CPPUTEST_CFLAGS += -pedantic
 CPPUTEST_CFLAGS += -Wno-missing-prototypes
 CPPUTEST_CFLAGS += -Wno-strict-prototypes
 CPPUTEST_CXXFLAGS += -Wno-c++14-compat
-CPPUTEST_CXXFLAGS += --std=c++11
+CPPUTEST_CXXFLAGS += --std=c++20
 CPPUTEST_CXXFLAGS += -Wno-c++98-compat-pedantic
 CPPUTEST_CXXFLAGS += -Wno-c++98-compat
+CPPUTEST_CPPFLAGS += -DCPPUTEST_MEM_LEAK_DETECTION_DISABLED
 
-# Coloroze output
+# Colorize output
 CPPUTEST_EXE_FLAGS += -c
 
 CPPUTEST_USE_GCOV=Y

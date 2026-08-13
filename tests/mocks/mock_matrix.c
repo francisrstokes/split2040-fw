@@ -1,41 +1,52 @@
 #include "mock_matrix.h"
 #include "CppUTestExt/MockSupport_c.h"
 
-// #define matrix_init                             prod_matrix_init
-// #define matrix_reset                            prod_matrix_reset
-// #define matrix_scan                             prod_matrix_scan
-// #define matrix_key_pressed                      prod_matrix_key_pressed
-// #define matrix_key_pressed_this_scan            prod_matrix_key_pressed_this_scan
-// #define matrix_key_released_this_scan           prod_matrix_key_released_this_scan
-// #define matrix_suppress_held_until_release      prod_matrix_suppress_held_until_release
-// #define matrix_suppress_key_until_release       prod_matrix_suppress_key_until_release
-// #define matrix_mark_key_as_handled              prod_matrix_mark_key_as_handled
-// #define matrix_mark_key_as_unhandled            prod_matrix_mark_key_as_unhandled
-// #define matrix_get_pressed_bitmap               prod_matrix_get_pressed_bitmap
-// #define matrix_get_handled_bitmap               prod_matrix_get_handled_bitmap
-// #define matrix_get_pressed_this_scan_bitmap     prod_matrix_get_pressed_this_scan_bitmap
-// #define matrix_get_released_this_scan_bitmap    prod_matrix_get_released_this_scan_bitmap
-// #define matrix_get_col_gpio                     prod_matrix_get_col_gpio
-// #define matrix_get_row_gpio                     prod_matrix_get_row_gpio
+// Testing values for a non-existant keyboard (though based on hex2a)
+uint matrix_cols[MATRIX_COLS] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 };
+uint matrix_rows[MATRIX_ROWS] = { 13, 14, 15, 16 };
 
-// #include "matrix.c"
+#define matrix_init                             prod_matrix_init
+#define matrix_reset                            prod_matrix_reset
+#define matrix_scan                             prod_matrix_scan
+#define matrix_key_pressed                      prod_matrix_key_pressed
+#define matrix_key_pressed_this_scan            prod_matrix_key_pressed_this_scan
+#define matrix_key_released_this_scan           prod_matrix_key_released_this_scan
+#define matrix_suppress_held_until_release      prod_matrix_suppress_held_until_release
+#define matrix_suppress_key_until_release       prod_matrix_suppress_key_until_release
+#define matrix_mark_key_as_handled              prod_matrix_mark_key_as_handled
+#define matrix_mark_key_as_unhandled            prod_matrix_mark_key_as_unhandled
+#define matrix_get_pressed_bitmap               prod_matrix_get_pressed_bitmap
+#define matrix_get_handled_bitmap               prod_matrix_get_handled_bitmap
+#define matrix_get_pressed_this_scan_bitmap     prod_matrix_get_pressed_this_scan_bitmap
+#define matrix_get_released_this_scan_bitmap    prod_matrix_get_released_this_scan_bitmap
+#define matrix_get_col_gpio                     prod_matrix_get_col_gpio
+#define matrix_get_row_gpio                     prod_matrix_get_row_gpio
 
-// #undef matrix_init
-// #undef matrix_reset
-// #undef matrix_scan
-// #undef matrix_key_pressed
-// #undef matrix_key_pressed_this_scan
-// #undef matrix_key_released_this_scan
-// #undef matrix_suppress_held_until_release
-// #undef matrix_suppress_key_until_release
-// #undef matrix_mark_key_as_handled
-// #undef matrix_mark_key_as_unhandled
-// #undef matrix_get_pressed_bitmap
-// #undef matrix_get_handled_bitmap
-// #undef matrix_get_pressed_this_scan_bitmap
-// #undef matrix_get_released_this_scan_bitmap
-// #undef matrix_get_col_gpio
-// #undef matrix_get_row_gpio
+// Hack to be able to test the matrix_settle_delay() function properly
+#define asm
+#define volatile(x) mock_c()->actualCall("asm: " x)
+
+#include "matrix.c"
+
+#undef asm
+#undef volatile
+
+#undef matrix_init
+#undef matrix_reset
+#undef matrix_scan
+#undef matrix_key_pressed
+#undef matrix_key_pressed_this_scan
+#undef matrix_key_released_this_scan
+#undef matrix_suppress_held_until_release
+#undef matrix_suppress_key_until_release
+#undef matrix_mark_key_as_handled
+#undef matrix_mark_key_as_unhandled
+#undef matrix_get_pressed_bitmap
+#undef matrix_get_handled_bitmap
+#undef matrix_get_pressed_this_scan_bitmap
+#undef matrix_get_released_this_scan_bitmap
+#undef matrix_get_col_gpio
+#undef matrix_get_row_gpio
 
 // Mocks
 static void mock_matrix_init(void) {
@@ -129,24 +140,24 @@ static const StMatrix_t MockStruct = {
     .matrix_get_row_gpio = mock_matrix_get_row_gpio,
 };
 
-// static const StMatrix_t ProdStruct = {
-//     .matrix_init = prod_matrix_init,
-//     .matrix_reset = prod_matrix_reset,
-//     .matrix_scan = prod_matrix_scan,
-//     .matrix_key_pressed = prod_matrix_key_pressed,
-//     .matrix_key_pressed_this_scan = prod_matrix_key_pressed_this_scan,
-//     .matrix_key_released_this_scan = prod_matrix_key_released_this_scan,
-//     .matrix_suppress_held_until_release = prod_matrix_suppress_held_until_release,
-//     .matrix_suppress_key_until_release = prod_matrix_suppress_key_until_release,
-//     .matrix_mark_key_as_handled = prod_matrix_mark_key_as_handled,
-//     .matrix_mark_key_as_unhandled = prod_matrix_mark_key_as_unhandled,
-//     .matrix_get_pressed_bitmap = prod_matrix_get_pressed_bitmap,
-//     .matrix_get_handled_bitmap = prod_matrix_get_handled_bitmap,
-//     .matrix_get_pressed_this_scan_bitmap = prod_matrix_get_pressed_this_scan_bitmap,
-//     .matrix_get_released_this_scan_bitmap = prod_matrix_get_released_this_scan_bitmap,
-//     .matrix_get_col_gpio = prod_matrix_get_col_gpio,
-//     .matrix_get_row_gpio = prod_matrix_get_row_gpio,
-// };
+static const StMatrix_t ProdStruct = {
+    .matrix_init = prod_matrix_init,
+    .matrix_reset = prod_matrix_reset,
+    .matrix_scan = prod_matrix_scan,
+    .matrix_key_pressed = prod_matrix_key_pressed,
+    .matrix_key_pressed_this_scan = prod_matrix_key_pressed_this_scan,
+    .matrix_key_released_this_scan = prod_matrix_key_released_this_scan,
+    .matrix_suppress_held_until_release = prod_matrix_suppress_held_until_release,
+    .matrix_suppress_key_until_release = prod_matrix_suppress_key_until_release,
+    .matrix_mark_key_as_handled = prod_matrix_mark_key_as_handled,
+    .matrix_mark_key_as_unhandled = prod_matrix_mark_key_as_unhandled,
+    .matrix_get_pressed_bitmap = prod_matrix_get_pressed_bitmap,
+    .matrix_get_handled_bitmap = prod_matrix_get_handled_bitmap,
+    .matrix_get_pressed_this_scan_bitmap = prod_matrix_get_pressed_this_scan_bitmap,
+    .matrix_get_released_this_scan_bitmap = prod_matrix_get_released_this_scan_bitmap,
+    .matrix_get_col_gpio = prod_matrix_get_col_gpio,
+    .matrix_get_row_gpio = prod_matrix_get_row_gpio,
+};
 
 static StMatrix_t ActiveStruct = MockStruct;
 
@@ -155,12 +166,26 @@ void mock_matrix_use_mocks(bool use_mocks) {
     if (use_mocks) {
         ActiveStruct = MockStruct;
     } else {
-        // ActiveStruct = ProdStruct;
+        ActiveStruct = ProdStruct;
     }
 }
 StMatrix_t* mock_matrix_get_fn_ptr_struct(void) {
     return &ActiveStruct;
 }
+
+MatrixInternals_t* mock_matrix_get_internals(void) {
+    static MatrixInternals_t internals = {
+        .prev_pressed_bitmap = &prev_pressed_bitmap,
+        .pressed_bitmap = &pressed_bitmap,
+        .handled_bitmap = &handled_bitmap,
+        .pressed_this_scan_bitmap = &pressed_this_scan_bitmap,
+        .released_this_scan_bitmap = &released_this_scan_bitmap,
+        .suppressed_until_release = &suppressed_until_release,
+    };
+
+    return &internals;
+}
+
 
 // Originally named functions that can be diverted to function pointers
 void matrix_init(void) {
