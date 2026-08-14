@@ -9,6 +9,7 @@ typedef struct ll_node_t {
     struct ll_node_t* prev;
     struct ll_node_t* next;
     void* data;          // Pointer into user-supplied data array
+    bool in_use;         // Marker to quickly determine if the node is active
 } ll_node_t;
 
 typedef struct ll_allocator_t {

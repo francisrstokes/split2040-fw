@@ -21,6 +21,26 @@ TEST_GROUP(ll_alloc) {
     }
 };
 
+TEST(ll_alloc, lla_init_with_zero_capacity_leaves_free_list_empty)
+{
+    // Setup
+    const uint32_t CAPACITY = 0;
+    ll_allocator_t alloc = {0};
+
+    // Expectations
+    // (none)
+
+    // Production call
+    lla_init(&alloc, (void*)NULL, (ll_node_t*)NULL, CAPACITY, sizeof(uint32_t));
+
+    // Checks
+    CHECK_EQUAL(CAPACITY, alloc.capacity);
+    POINTERS_EQUAL(NULL, alloc.free_head);
+    POINTERS_EQUAL(NULL, alloc.free_tail);
+    POINTERS_EQUAL(NULL, alloc.active_head);
+    POINTERS_EQUAL(NULL, alloc.active_tail);
+}
+
 TEST(ll_alloc, lla_init_stores_config_and_links_free_list)
 {
     // Setup
@@ -305,14 +325,9 @@ TEST(ll_alloc, lla_free_unlinks_the_only_active_node)
     POINTERS_EQUAL(n0, alloc.free_tail);
 }
 
-TEST(ll_alloc, lla_free_called_twice_on_the_same_node_corrupts_both_lists)
+TEST(ll_alloc, lla_free_called_twice_on_the_same_node_is_a_no_op)
 {
     // Setup
-    // This documents a known double-free bug: unlink_node() assumes n->prev/n->next
-    // being NULL means "n is the only node", which is also true of an already-freed
-    // node. The second free wipes active_head/active_tail even though n0 and n2 are
-    // still linked to each other, and inserts n1 into the free list a second time,
-    // producing a self-referencing node.
     const uint32_t CAPACITY = 3;
     uint32_t data_block[CAPACITY] = {0};
     ll_node_t node_block[CAPACITY] = {0};
@@ -332,18 +347,37 @@ TEST(ll_alloc, lla_free_called_twice_on_the_same_node_corrupts_both_lists)
     lla_free(&alloc, n1);
 
     // Checks
-    // n0 and n2 are still linked to each other, but no longer reachable via
-    // active_head/active_tail.
-    POINTERS_EQUAL(NULL, alloc.active_head);
-    POINTERS_EQUAL(NULL, alloc.active_tail);
+    POINTERS_EQUAL(n0, alloc.active_head);
+    POINTERS_EQUAL(n2, alloc.active_tail);
     POINTERS_EQUAL(n2, n0->next);
     POINTERS_EQUAL(n0, n2->prev);
-
-    // n1 now points to itself in the free list.
     POINTERS_EQUAL(n1, alloc.free_head);
     POINTERS_EQUAL(n1, alloc.free_tail);
-    POINTERS_EQUAL(n1, n1->prev);
-    POINTERS_EQUAL(n1, n1->next);
+    POINTERS_EQUAL(NULL, n1->prev);
+    POINTERS_EQUAL(NULL, n1->next);
+    CHECK_FALSE(n1->in_use);
+}
+
+TEST(ll_alloc, lla_free_with_null_node_does_nothing)
+{
+    // Setup
+    const uint32_t CAPACITY = 2;
+    uint32_t data_block[CAPACITY] = {0};
+    ll_node_t node_block[CAPACITY] = {0};
+    ll_allocator_t alloc = {0};
+    lla_init(&alloc, data_block, node_block, CAPACITY, sizeof(uint32_t));
+
+    ll_node_t* n0 = lla_alloc_tail(&alloc);
+
+    // Expectations
+    // (none)
+
+    // Production call
+    lla_free(&alloc, NULL);
+
+    // Checks
+    POINTERS_EQUAL(n0, alloc.active_head);
+    POINTERS_EQUAL(n0, alloc.active_tail);
 }
 
 TEST(ll_alloc, lla_free_all_returns_every_active_node_to_free)
