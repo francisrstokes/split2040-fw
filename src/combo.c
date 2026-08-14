@@ -104,29 +104,10 @@ static void combo_deactivate_unfinished_overlapping_combos(uint combo_index) {
             if (combo_get_key_index(other_index, key) != -1) {
                 combos[other_index].state = combo_state_cooldown;
                 combos[other_index].time_since_first_press = 0;
-                break;
+                continue;
             }
         }
     }
-}
-
-static bool combo_have_all_keys_been_released(uint combo_index) {
-    rowcol_t* rowcol = NULL;
-    const uint32_t* pressed = matrix_get_pressed_bitmap();
-
-    for (uint8_t key_bit = 0; key_bit < COMBO_KEYS_MAX; key_bit++) {
-        // Is this key position assumed pressed by the combo?
-        if (combos[combo_index].keys_pressed_bitmask & (1 << key_bit)) {
-            // It is. Check if the matrix agrees
-            rowcol = &combos[combo_index].key_positions[key_bit];
-            if (combos[combo_index].keys[key_bit] == KC_NONE || (pressed[rowcol->row] & (1 << rowcol->col)) == 0) {
-                // Key is no longer pressed. Clear the bit
-                combos[combo_index].keys_pressed_bitmask &= ~(1 << key_bit);
-            }
-        }
-    }
-
-    return combos[combo_index].keys_pressed_bitmask == 0;
 }
 
 // public functions
@@ -190,7 +171,6 @@ bool combo_on_key_press(uint row, uint col, keymap_entry_t key) {
 }
 
 bool combo_on_key_release(uint row, uint col, keymap_entry_t key) {
-    bool was_handled = false;
     int combo_index = combo_find_next_with_key(0, key);
 
     while (combo_index != -1) {
@@ -233,12 +213,10 @@ bool combo_on_key_release(uint row, uint col, keymap_entry_t key) {
         combo_index = combo_find_next_with_key(combo_index + 1, key);
     }
 
-    return was_handled;
+    return false;
 }
 
 bool combo_update(void) {
-    bool there_are_unresolved_combos = false;
-
     for (uint combo_index = 0; combo_index < COMBO_MAX; combo_index++) {
         if (combos[combo_index].state == combo_state_invalid) continue;
         if (combos[combo_index].state == combo_state_inactive) continue;
@@ -255,8 +233,6 @@ bool combo_update(void) {
             // This is handled by press and release events
             combo_mark_keys_as_handled(combo_index);
         } else if (combos[combo_index].state == combo_state_active) {
-            there_are_unresolved_combos = true;
-
             combos[combo_index].time_since_first_press += MATRIX_SCAN_INTERVAL_MS;
             if (combos[combo_index].time_since_first_press >= COMBO_DELAY_MS) {
 
