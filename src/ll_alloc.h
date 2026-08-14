@@ -1,6 +1,8 @@
 #pragma once
 
-#include "pico/stdlib.h"
+#include "stdint.h"
+#include "stdbool.h"
+#include "stddef.h"
 
 // typedefs
 typedef struct ll_node_t {
