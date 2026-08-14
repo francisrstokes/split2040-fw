@@ -41,6 +41,12 @@ void lla_init(ll_allocator_t* alloc, void* data_block, ll_node_t* node_block, ui
     alloc->elem_size   = elem_size;
     alloc->active_head = alloc->active_tail = NULL;
 
+    // if the user supplied zero capacity, don't try to do anything with node blocks
+    if (capacity == 0) {
+        alloc->free_head = alloc->free_tail = NULL;
+        return;
+    }
+
     // link nodes into free list
     alloc->free_head = &node_block[0];
     alloc->free_tail = &node_block[capacity - 1];
@@ -50,6 +56,7 @@ void lla_init(ll_allocator_t* alloc, void* data_block, ll_node_t* node_block, ui
         n->prev = (i == 0) ? NULL : &node_block[i - 1];
         n->next = (i == capacity - 1) ? NULL : &node_block[i + 1];
         n->data = (uint8_t*)data_block + i*  elem_size;
+        n->in_use = false;
     }
 }
 
@@ -59,6 +66,8 @@ ll_node_t* lla_alloc_head(ll_allocator_t* alloc) {
 
     unlink_node(&alloc->free_head, &alloc->free_tail, n);
     insert_head(&alloc->active_head, &alloc->active_tail, n);
+
+    n->in_use = true;
     return n;
 }
 
@@ -68,12 +77,18 @@ ll_node_t* lla_alloc_tail(ll_allocator_t* alloc) {
 
     unlink_node(&alloc->free_head, &alloc->free_tail, n);
     insert_tail(&alloc->active_head, &alloc->active_tail, n);
+
+    n->in_use = true;
     return n;
 }
 
 void lla_free(ll_allocator_t* alloc, ll_node_t* n) {
+    if (n == NULL || !n->in_use) return;
+
     unlink_node(&alloc->active_head, &alloc->active_tail, n);
     insert_head(&alloc->free_head, &alloc->free_tail, n);
+
+    n->in_use = false;
 }
 
 void lla_free_all(ll_allocator_t* alloc) {
