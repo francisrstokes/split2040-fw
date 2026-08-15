@@ -25,6 +25,8 @@ typedef struct LLAllocInternals_t {
 // Mock API
 void mock_lla_use_mocks(bool use_mocks);
 StLLAlloc_t* mock_lla_get_fn_ptr_struct(void);
+const StLLAlloc_t* mock_lla_get_prod_fn_ptr_struct(void);
+const StLLAlloc_t* mock_lla_get_mock_fn_ptr_struct(void);
 LLAllocInternals_t* mock_lla_get_internals(void);
 
 #ifdef __cplusplus

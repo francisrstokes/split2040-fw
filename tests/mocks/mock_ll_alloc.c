@@ -87,6 +87,14 @@ LLAllocInternals_t* mock_lla_get_internals(void) {
     return &Internals;
 }
 
+const StLLAlloc_t* mock_lla_get_prod_fn_ptr_struct(void) {
+    return &ProdStruct;
+}
+
+const StLLAlloc_t* mock_lla_get_mock_fn_ptr_struct(void) {
+    return &MockStruct;
+}
+
 // Originally named functions that can be diverted to function pointers
 void lla_init(ll_allocator_t* alloc, void* data_block, ll_node_t* node_block, uint32_t capacity, uint32_t elem_size) {
     return ActiveStruct.lla_init(alloc, data_block, node_block, capacity, elem_size);
