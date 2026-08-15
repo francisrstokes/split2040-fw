@@ -31,6 +31,21 @@ typedef struct split_i2c_controller_t {
     uint32_t keys[MATRIX_ROWS];
 } split_i2c_controller_t;
 
+typedef enum split_uart_controller_state_t {
+    split_uart_controller_state_wait_sync = 0,
+    split_uart_controller_state_rx_keys,
+
+    split_uart_controller_state_max
+} split_uart_controller_state_t;
+
+typedef struct split_uart_t {
+    split_uart_controller_state_t state;
+    uint8_t rx_buffer[4];
+    uint32_t keys[MATRIX_ROWS];
+    uint8_t row;
+    uint8_t byte_offset;
+} split_uart_t;
+
 // public functions
 void split_init(void);
 void split_scan_complete(void);
