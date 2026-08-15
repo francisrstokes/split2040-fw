@@ -31,6 +31,7 @@ function(add_keyboard_target NAME)
         src/kb_config.c
         src/log.c
         src/split.c
+        src/pio_uart.c
 
         # Specific keyboards
         src/machines/hex2a/machine.c
@@ -54,6 +55,7 @@ function(add_keyboard_target NAME)
         )
 
     pico_generate_pio_header(${NAME} ${CMAKE_CURRENT_LIST_DIR}/src/ws2812.pio OUTPUT_DIR generated)
+    pico_generate_pio_header(${NAME} ${CMAKE_CURRENT_LIST_DIR}/src/pio_uart.pio OUTPUT_DIR generated)
 
     pico_add_extra_outputs(${NAME})
 endfunction()
