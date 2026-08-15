@@ -40,6 +40,7 @@ function(add_keyboard_target NAME)
 
         # Specific keyboards
         src/machines/hex2a/machine.c
+        src/machines/hex2b/machine.c
         src/machines/split2040/machine.c
         )
 
@@ -68,6 +69,9 @@ endfunction()
 # Keyboards
 add_keyboard_target(hex2a       KEYBOARD_HEX2A)
 add_keyboard_target(split2040   KEYBOARD_SPLIT2040)
+
+add_keyboard_target(hex2b_left  KEYBOARD_HEX2B SPLIT_CONTROLLER)
+add_keyboard_target(hex2b_right KEYBOARD_HEX2B SPLIT_TARGET)
 
 # Run unit tests (built and run via the CppUTest Makefile in tests/)
 enable_testing()
