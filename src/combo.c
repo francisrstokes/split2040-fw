@@ -110,12 +110,11 @@ static void combo_deactivate_unfinished_overlapping_combos(uint combo_index) {
     }
 }
 
-// public functions
-void combo_init(combo_t* combo_table) {
-    combos = combo_table;
+static void combo_init(void* init_data) {
+    combos = (combo_t*)init_data;
 }
 
-void combo_reset(void) {
+static void combo_reset(void) {
     for (uint combo_index = 0; combo_index < COMBO_MAX; combo_index++) {
         if (combos[combo_index].state == combo_state_invalid) continue;
 
@@ -126,7 +125,7 @@ void combo_reset(void) {
     }
 }
 
-bool combo_on_key_press(uint row, uint col, keymap_entry_t key) {
+static bool combo_on_press(uint row, uint col, keymap_entry_t key) {
     bool was_handled = false;
     int combo_index = combo_find_next_with_key(0, key);
 
@@ -170,7 +169,12 @@ bool combo_on_key_press(uint row, uint col, keymap_entry_t key) {
     return was_handled;
 }
 
-bool combo_on_key_release(uint row, uint col, keymap_entry_t key) {
+static bool combo_on_virtual_press(keymap_entry_t key) {
+    (void)key;
+    return false;
+}
+
+static bool combo_on_release(uint row, uint col, keymap_entry_t key) {
     int combo_index = combo_find_next_with_key(0, key);
 
     while (combo_index != -1) {
@@ -216,7 +220,7 @@ bool combo_on_key_release(uint row, uint col, keymap_entry_t key) {
     return false;
 }
 
-bool combo_update(void) {
+static bool combo_update(void) {
     for (uint combo_index = 0; combo_index < COMBO_MAX; combo_index++) {
         if (combos[combo_index].state == combo_state_invalid) continue;
         if (combos[combo_index].state == combo_state_inactive) continue;
@@ -256,4 +260,19 @@ bool combo_update(void) {
     }
 
     return false;
+}
+
+// public functions
+const keyboard_system_t* combo_system(void) {
+    static const keyboard_system_t system = {
+        .name = "combo",
+        .init = combo_init,
+        .reset = combo_reset,
+        .update = combo_update,
+        .on_press = combo_on_press,
+        .on_virtual_press = combo_on_virtual_press,
+        .on_release = combo_on_release,
+    };
+
+    return &system;
 }

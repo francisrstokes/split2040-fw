@@ -1,62 +1,22 @@
 #include "mock_combo.h"
 #include "CppUTestExt/MockSupport_c.h"
 
-#define combo_init              prod_combo_init
-#define combo_reset             prod_combo_reset
-#define combo_on_key_press      prod_combo_on_key_press
-#define combo_on_key_release    prod_combo_on_key_release
-#define combo_update            prod_combo_update
+#define combo_system              prod_combo_system
 
 #include "combo.c"
 
-#undef combo_init
-#undef combo_reset
-#undef combo_on_key_press
-#undef combo_on_key_release
-#undef combo_update
+#undef combo_system
 
 // Mocks
-static void mock_combo_init(combo_t* combo_table) {
-    mock_c()->actualCall("combo_init")
-    ->withPointerParameters("combo_table", (void*)combo_table);
-}
-static void mock_combo_reset(void) {
-    mock_c()->actualCall("combo_reset");
-}
-static bool mock_combo_on_key_press(uint row, uint col, keymap_entry_t key) {
-    mock_c()->actualCall("combo_on_key_press")
-    ->withUnsignedIntParameters("row", row)
-    ->withUnsignedIntParameters("col", col)
-    ->withUnsignedIntParameters("key", key);
-    return mock_c()->returnBoolValueOrDefault(false);
-}
-static bool mock_combo_on_key_release(uint row, uint col, keymap_entry_t key) {
-    mock_c()->actualCall("combo_on_key_release")
-    ->withUnsignedIntParameters("row", row)
-    ->withUnsignedIntParameters("col", col)
-    ->withUnsignedIntParameters("key", key);
-    return mock_c()->returnBoolValueOrDefault(false);
-}
-static bool mock_combo_update(void) {
-    mock_c()->actualCall("combo_update");
-    return mock_c()->returnBoolValueOrDefault(false);
-}
+KB_SYSTEM_MOCKS(combo)
 
 // Function pointer structs
 static const StCombo_t MockStruct = {
-    .combo_init = mock_combo_init,
-    .combo_reset = mock_combo_reset,
-    .combo_on_key_press = mock_combo_on_key_press,
-    .combo_on_key_release = mock_combo_on_key_release,
-    .combo_update = mock_combo_update,
+    .combo_system = mock_combo_system,
 };
 
 static const StCombo_t ProdStruct = {
-    .combo_init = prod_combo_init,
-    .combo_reset = prod_combo_reset,
-    .combo_on_key_press = prod_combo_on_key_press,
-    .combo_on_key_release = prod_combo_on_key_release,
-    .combo_update = prod_combo_update,
+    .combo_system = prod_combo_system,
 };
 
 static StCombo_t ActiveStruct = MockStruct;
@@ -86,24 +46,13 @@ ComboInternals_t* mock_combo_get_internals(void) {
         .combo_get_single_pressed_index = combo_get_single_pressed_index,
         .combo_mark_keys_as_handled = combo_mark_keys_as_handled,
         .combo_deactivate_unfinished_overlapping_combos = combo_deactivate_unfinished_overlapping_combos,
+        KB_SYSTEM_INTERNALS_PRIVATE_FN_ASSIGNMENTS(combo)
     };
 
     return &Internals;
 }
 
 // Originally named functions that can be diverted to function pointers
-void combo_init(combo_t* combo_table) {
-    return ActiveStruct.combo_init(combo_table);
-}
-void combo_reset(void) {
-    return ActiveStruct.combo_reset();
-}
-bool combo_on_key_press(uint row, uint col, keymap_entry_t key) {
-    return ActiveStruct.combo_on_key_press(row, col, key);
-}
-bool combo_on_key_release(uint row, uint col, keymap_entry_t key) {
-    return ActiveStruct.combo_on_key_release(row, col, key);
-}
-bool combo_update(void) {
-    return ActiveStruct.combo_update();
+const keyboard_system_t* combo_system(void) {
+    return ActiveStruct.combo_system();
 }

@@ -11,13 +11,10 @@ extern "C" {
 
 #include "machines/machine.h"
 #include "combo.h"
+#include "mock_keyboard_system.h"
 
 typedef struct StCombo_t {
-    void (*combo_init)(combo_t* combo_table);
-    void (*combo_reset)(void);
-    bool (*combo_on_key_press)(uint row, uint col, keymap_entry_t key);
-    bool (*combo_on_key_release)(uint row, uint col, keymap_entry_t key);
-    bool (*combo_update)(void);
+    KB_SYSTEM_FN_PTR(combo);
 } StCombo_t;
 
 typedef struct ComboInternals_t {
@@ -32,6 +29,7 @@ typedef struct ComboInternals_t {
     int (*combo_get_single_pressed_index)(uint combo_index);
     void (*combo_mark_keys_as_handled)(uint combo_index);
     void (*combo_deactivate_unfinished_overlapping_combos)(uint combo_index);
+    KB_SYSTEM_INTERNALS_PRIVATE_FNS(combo)
 } ComboInternals_t;
 
 // Mock API

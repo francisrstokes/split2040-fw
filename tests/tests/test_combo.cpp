@@ -44,7 +44,7 @@ TEST(combo, combo_init_sets_combo_table_pointer)
     // (none)
 
     // Production call
-    combo_init(combo_table);
+    combo_system()->init(combo_table);
 
     // Checks
     POINTERS_EQUAL(combo_table, *internals->combos);
@@ -71,7 +71,7 @@ TEST(combo, combo_reset_restores_valid_combos_to_inactive)
     // (none)
 
     // Production call
-    combo_reset();
+    combo_system()->reset();
 
     // Checks
     PlatformSpecificMemset(expected_positions, 0xff, sizeof(expected_positions));
@@ -96,7 +96,7 @@ TEST(combo, combo_on_key_press_ignores_non_combo_keys)
     // (none)
 
     // Production call
-    bool result = combo_on_key_press(4, 2, KC_ENTER);
+    bool result = combo_system()->on_press(4, 2, KC_ENTER);
 
     // Checks
     CHECK_EQUAL(false, result);
@@ -115,7 +115,7 @@ TEST(combo, combo_on_key_press_starts_combo_on_first_key_of_multiple)
     mock().expectOneCall("matrix_mark_key_as_handled").withParameter("row", 4).withParameter("col", 2);
 
     // Production call
-    bool result = combo_on_key_press(4, 2, KC_A);
+    bool result = combo_system()->on_press(4, 2, KC_A);
 
     // Checks
     CHECK_EQUAL(true, result);
@@ -142,7 +142,7 @@ TEST(combo, combo_on_key_press_completes_combo_and_sends_output_key)
     mock().expectOneCall("keyboard_send_key").withParameter("key", KC_ENTER);
 
     // Production call
-    bool result = combo_on_key_press(5, 3, KC_B);
+    bool result = combo_system()->on_press(5, 3, KC_B);
 
     // Checks
     CHECK_EQUAL(true, result);
@@ -163,7 +163,7 @@ TEST(combo, combo_on_key_press_ignored_while_in_cooldown)
     // (none)
 
     // Production call
-    bool result = combo_on_key_press(4, 2, KC_A);
+    bool result = combo_system()->on_press(4, 2, KC_A);
 
     // Checks
     CHECK_EQUAL(true, result);
@@ -186,7 +186,7 @@ TEST(combo, combo_on_key_press_remarks_key_while_waiting_for_all_released)
     // (none)
 
     // Production call
-    bool result = combo_on_key_press(4, 2, KC_A);
+    bool result = combo_system()->on_press(4, 2, KC_A);
 
     // Checks
     CHECK_EQUAL(true, result);
@@ -213,8 +213,8 @@ TEST(combo, combo_on_key_press_deactivates_other_combo_sharing_a_key_on_completi
     mock().expectOneCall("keyboard_send_key").withParameter("key", KC_ENTER);
 
     // Production calls
-    combo_on_key_press(0, 0, KC_A);
-    bool result = combo_on_key_press(1, 1, KC_B);
+    combo_system()->on_press(0, 0, KC_A);
+    bool result = combo_system()->on_press(1, 1, KC_B);
 
     // Checks
     CHECK_EQUAL(true, result);
@@ -235,7 +235,7 @@ TEST(combo, combo_on_key_release_ignores_non_combo_keys)
     // (none)
 
     // Production call
-    bool result = combo_on_key_release(4, 2, KC_ENTER);
+    bool result = combo_system()->on_release(4, 2, KC_ENTER);
 
     // Checks
     CHECK_EQUAL(false, result);
@@ -256,7 +256,7 @@ TEST(combo, combo_on_key_release_while_cooldown_clears_pressed_bit)
     // (none)
 
     // Production call
-    bool result = combo_on_key_release(4, 2, KC_A);
+    bool result = combo_system()->on_release(4, 2, KC_A);
 
     // Checks
     CHECK_EQUAL(false, result);
@@ -279,7 +279,7 @@ TEST(combo, combo_on_key_release_while_wait_for_all_released_returns_to_inactive
     // (none)
 
     // Production call
-    bool result = combo_on_key_release(4, 2, KC_B);
+    bool result = combo_system()->on_release(4, 2, KC_B);
 
     // Checks
     CHECK_EQUAL(false, result);
@@ -302,7 +302,7 @@ TEST(combo, combo_on_key_release_while_wait_for_all_released_stays_active_if_oth
     // (none)
 
     // Production call
-    bool result = combo_on_key_release(4, 2, KC_B);
+    bool result = combo_system()->on_release(4, 2, KC_B);
 
     // Checks
     CHECK_EQUAL(false, result);
@@ -325,7 +325,7 @@ TEST(combo, combo_on_key_release_while_single_held_returns_to_inactive)
     // (none)
 
     // Production call
-    bool result = combo_on_key_release(4, 2, KC_A);
+    bool result = combo_system()->on_release(4, 2, KC_A);
 
     // Checks
     CHECK_EQUAL(false, result);
@@ -347,7 +347,7 @@ TEST(combo, combo_on_key_release_while_active_and_last_key_released_emits_single
     mock().expectOneCall("keyboard_send_key").withParameter("key", KC_A);
 
     // Production call
-    bool result = combo_on_key_release(4, 2, KC_A);
+    bool result = combo_system()->on_release(4, 2, KC_A);
 
     // Checks
     CHECK_EQUAL(false, result);
@@ -369,7 +369,7 @@ TEST(combo, combo_on_key_release_while_active_with_other_keys_still_pressed_star
     // (none)
 
     // Production call
-    bool result = combo_on_key_release(4, 2, KC_B);
+    bool result = combo_system()->on_release(4, 2, KC_B);
 
     // Checks
     CHECK_EQUAL(false, result);
@@ -392,7 +392,7 @@ TEST(combo, combo_on_key_release_while_inactive_does_nothing)
     // (none)
 
     // Production call
-    bool result = combo_on_key_release(4, 2, KC_A);
+    bool result = combo_system()->on_release(4, 2, KC_A);
 
     // Checks
     CHECK_EQUAL(false, result);
@@ -411,7 +411,7 @@ TEST(combo, combo_update_skips_invalid_and_inactive_combos)
     // (none)
 
     // Production call
-    bool active = combo_update();
+    bool active = combo_system()->update();
 
     // Checks
     CHECK_EQUAL(false, active);
@@ -436,7 +436,7 @@ TEST(combo, combo_update_cooldown_marks_keys_as_handled_before_timeout)
     mock().expectOneCall("matrix_mark_key_as_handled").withParameter("row", 5).withParameter("col", 3);
 
     // Production call
-    bool active = combo_update();
+    bool active = combo_system()->update();
 
     // Checks
     CHECK_EQUAL(false, active);
@@ -459,7 +459,7 @@ TEST(combo, combo_update_cooldown_becomes_inactive_after_timeout)
     // (none)
 
     // Production call
-    bool active = combo_update();
+    bool active = combo_system()->update();
 
     // Checks
     CHECK_EQUAL(false, active);
@@ -483,7 +483,7 @@ TEST(combo, combo_update_wait_for_all_released_marks_keys_as_handled)
     mock().expectOneCall("matrix_mark_key_as_handled").withParameter("row", 5).withParameter("col", 3);
 
     // Production call
-    bool active = combo_update();
+    bool active = combo_system()->update();
 
     // Checks
     CHECK_EQUAL(false, active);
@@ -506,7 +506,7 @@ TEST(combo, combo_update_active_before_delay_only_tracks_time)
     // (none)
 
     // Production call
-    bool active = combo_update();
+    bool active = combo_system()->update();
 
     // Checks
     CHECK_EQUAL(false, active);
@@ -530,7 +530,7 @@ TEST(combo, combo_update_active_after_delay_with_single_key_emits_and_becomes_si
     mock().expectOneCall("keyboard_send_key").withParameter("key", KC_A);
 
     // Production call
-    bool active = combo_update();
+    bool active = combo_system()->update();
 
     // Checks
     CHECK_EQUAL(false, active);
@@ -559,7 +559,7 @@ TEST(combo, combo_update_active_after_delay_with_multiple_keys_starts_cooldown)
     mock().expectOneCall("matrix_mark_key_as_handled").withParameter("row", 0xff).withParameter("col", 0xff);
 
     // Production call
-    bool active = combo_update();
+    bool active = combo_system()->update();
 
     // Checks
     CHECK_EQUAL(false, active);
@@ -582,7 +582,7 @@ TEST(combo, combo_update_single_held_repeats_output_key)
     mock().expectOneCall("keyboard_send_key").withParameter("key", KC_B);
 
     // Production call
-    bool active = combo_update();
+    bool active = combo_system()->update();
 
     // Checks
     CHECK_EQUAL(false, active);

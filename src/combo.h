@@ -8,6 +8,7 @@
 
 #include "pico/types.h"
 #include "keyboard.h"
+#include "keyboard_system.h"
 
 // typedefs
 typedef struct rowcol_t {
@@ -42,8 +43,4 @@ typedef struct combo_t {
 #define COMBO_UNUSED                                {.state = combo_state_invalid}
 
 // public functions
-void combo_init(combo_t* combo_table);
-void combo_reset(void);
-bool combo_update(void);
-bool combo_on_key_press(uint row, uint col, keymap_entry_t key);
-bool combo_on_key_release(uint row, uint col, keymap_entry_t key);
+const keyboard_system_t* combo_system(void);
