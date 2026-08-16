@@ -22,16 +22,16 @@ typedef struct mouse_states_t {
 static mouse_report_t* mouse_report = NULL;
 static mouse_states_t mouse_states = {0};
 
-// public functions
-void mouse_init(mouse_report_t* mouse_report_ref) {
-    mouse_report = mouse_report_ref;
+// private functions
+static void mouse_init(void* init_data) {
+    mouse_report = (mouse_report_t*)init_data;
 }
 
-void mouse_reset(void) {
+static void mouse_reset(void) {
     memset(&mouse_states, 0, sizeof(mouse_states));
 }
 
-bool mouse_update(void) {
+static bool mouse_update(void) {
     if (mouse_states.left_click)   mouse_report->buttons |= MOUSE_BUTTON_LEFT;
     if (mouse_states.middle_click) mouse_report->buttons |= MOUSE_BUTTON_MIDDLE;
     if (mouse_states.right_click)  mouse_report->buttons |= MOUSE_BUTTON_RIGHT;
@@ -42,7 +42,7 @@ bool mouse_update(void) {
     return false;
 }
 
-bool mouse_on_key_release(uint row, uint col, keymap_entry_t key) {
+static bool mouse_on_release(uint row, uint col, keymap_entry_t key) {
     if ((key & ENTRY_TYPE_MASK) != ENTRY_TYPE_MOUSE) return false;
 
     switch (key & MOUSE_ACTION_MASK) {
@@ -59,7 +59,7 @@ bool mouse_on_key_release(uint row, uint col, keymap_entry_t key) {
     }
 }
 
-bool mouse_on_key_press(uint row, uint col, keymap_entry_t key) {
+static bool mouse_on_press(uint row, uint col, keymap_entry_t key) {
     if ((key & ENTRY_TYPE_MASK) != ENTRY_TYPE_MOUSE) return false;
 
     switch (key & MOUSE_ACTION_MASK) {
@@ -74,4 +74,23 @@ bool mouse_on_key_press(uint row, uint col, keymap_entry_t key) {
             // Ignore for now
         }
     }
+}
+
+static bool mouse_on_virtual_press(keymap_entry_t key) {
+    mouse_on_press(0xff, 0xff, key);
+}
+
+// public functions
+const keyboard_system_t* mouse_system(void) {
+    static const keyboard_system_t system = {
+        .name = "mouse",
+        .init = mouse_init,
+        .reset = mouse_reset,
+        .update = mouse_update,
+        .on_press = mouse_on_press,
+        .on_virtual_press = mouse_on_virtual_press,
+        .on_release = mouse_on_release,
+    };
+
+    return &system;
 }
