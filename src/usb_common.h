@@ -149,7 +149,7 @@ typedef struct mouse_report_t {
     int8_t x;
     int8_t y;
     int8_t wheel;
-} __packed mouse_report_t;
+} __attribute__((packed)) mouse_report_t;
 
 void usb_device_init(void);
 uint8_t* usb_get_kb_hid_descriptor_ptr(void);
