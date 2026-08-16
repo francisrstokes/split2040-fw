@@ -64,7 +64,7 @@ static void keyboard_on_key_release(uint row, uint col, keymap_entry_t key) {
     if (mouse_on_key_release(row, col, key)) return;
     if (kbc_on_key_release(row, col, key)) return;
     if (macro_system()->on_release(row, col, key)) return;
-    if (combo_on_key_release(row, col, key)) return;
+    if (combo_system()->on_release(row, col, key)) return;
     if (layers_system()->on_release(row, col, key)) return;
     if (taphold_on_key_release(row, col, key)) return;
     if (double_tap_system()->on_release(row, col, key)) return;
@@ -76,7 +76,7 @@ static void keyboard_on_key_press(uint row, uint col, keymap_entry_t key) {
     if (macro_system()->on_press(row, col, key)) return;
 
     if (!tapholds_any_active()) {
-        if (combo_on_key_press(row, col, key)) return;
+        if (combo_system()->on_press(row, col, key)) return;
     }
 
     if (layers_system()->on_press(row, col, key)) return;
@@ -119,7 +119,7 @@ void keyboard_init(uint8_t* keyboard_hid_report, uint16_t* cc_hid_report, mouse_
     double_tap_system()->init(NULL);
 
     // Init combos
-    combo_init(combos);
+    combo_system()->init(combos);
 
     // Init macros
     macro_system()->init(macros);
@@ -129,7 +129,7 @@ void keyboard_init(uint8_t* keyboard_hid_report, uint16_t* cc_hid_report, mouse_
 }
 
 void keyboard_reset(void) {
-    combo_reset();
+    combo_system()->reset();
     taphold_reset();
     macro_system()->reset();
     mouse_reset();
@@ -219,7 +219,7 @@ void keyboard_post_scan(void) {
 
     if (!macro_system()->update()) {
         // Handle combos before layer change operations to allow for the layer changing keys themselves to be used for combos
-        bool ignore_remaining_keypresses = combo_update();
+        bool ignore_remaining_keypresses = combo_system()->update();
 
         // Tapholds
         ignore_remaining_keypresses = taphold_update() || ignore_remaining_keypresses;
