@@ -32,8 +32,9 @@ static ll_node_t* double_tap_find_active(keymap_entry_t key) {
     return NULL;
 }
 
-// public functions
-void double_tap_init(void) {
+static void double_tap_init(void* init_data) {
+    (void)init_data;
+
     lla_init(
         &double_taps.allocator,
         double_taps.data_array,
@@ -43,15 +44,14 @@ void double_tap_init(void) {
     );
 }
 
-void double_tap_reset(void) {
+static void double_tap_reset(void) {
     lla_free_all(&double_taps.allocator);
 }
 
-bool double_tap_update(void) {
+static bool double_tap_update(void) {
     ll_node_t* dt_node = double_taps.allocator.active_head;
     double_tap_data_t* current_dt = NULL;
     keymap_entry_t key = KC_NONE;
-    bool timer_expired = false;
     bool node_became_inactive = false;
     bool there_are_active_undetermined_double_taps = false;
 
@@ -99,7 +99,7 @@ bool double_tap_update(void) {
     return there_are_active_undetermined_double_taps;
 }
 
-bool double_tap_on_key_release(uint row, uint col, keymap_entry_t key) {
+static bool double_tap_on_release(uint row, uint col, keymap_entry_t key) {
     if ((key & ENTRY_TYPE_MASK) == ENTRY_TYPE_DOUBLE_TAP) {
         ll_node_t* dt_node = double_tap_find_active(key);
         if (dt_node == NULL) return false;
@@ -118,7 +118,7 @@ bool double_tap_on_key_release(uint row, uint col, keymap_entry_t key) {
     return false;
 }
 
-bool double_tap_on_key_press(uint row, uint col, keymap_entry_t key) {
+static bool double_tap_on_press(uint row, uint col, keymap_entry_t key) {
     if ((key & ENTRY_TYPE_MASK) == ENTRY_TYPE_DOUBLE_TAP) {
         ll_node_t* dt_node = double_tap_find_active(key);
         if (dt_node == NULL) {
@@ -145,4 +145,23 @@ bool double_tap_on_key_press(uint row, uint col, keymap_entry_t key) {
     }
 
     return false;
+}
+
+static bool double_tap_on_virtual_press(keymap_entry_t key) {
+    return double_tap_on_press(0xff, 0xff, key);
+}
+
+// public functions
+const keyboard_system_t* double_tap_system(void) {
+    static const keyboard_system_t system = {
+        .name = "double tap",
+        .init = double_tap_init,
+        .reset = double_tap_reset,
+        .update = double_tap_update,
+        .on_press = double_tap_on_press,
+        .on_virtual_press = double_tap_on_virtual_press,
+        .on_release = double_tap_on_release,
+    };
+
+    return &system;
 }

@@ -67,7 +67,7 @@ static void keyboard_on_key_release(uint row, uint col, keymap_entry_t key) {
     if (combo_on_key_release(row, col, key)) return;
     if (layers_on_key_release(row, col, key)) return;
     if (taphold_on_key_release(row, col, key)) return;
-    if (double_tap_on_key_release(row, col, key)) return;
+    if (double_tap_system()->on_release(row, col, key)) return;
 }
 
 static void keyboard_on_key_press(uint row, uint col, keymap_entry_t key) {
@@ -81,13 +81,14 @@ static void keyboard_on_key_press(uint row, uint col, keymap_entry_t key) {
 
     if (layers_on_key_press(row, col, key)) return;
     if (taphold_on_key_press(row, col, key)) return;
-    if (double_tap_on_key_press(row, col, key)) return;
+    if (double_tap_system()->on_press(row, col, key)) return;
 }
 
 static void keyboard_handle_virtual_key(keymap_entry_t key) {
     if (kbc_on_virtual_key(key)) return;
     if (macro_on_virtual_key(key)) return;
     if (layers_on_virtual_key(key)) return;
+    if (double_tap_system()->on_virtual_press(key)) return;
 }
 
 static void keyboard_bootmagic(void) {
@@ -115,7 +116,7 @@ void keyboard_init(uint8_t* keyboard_hid_report, uint16_t* cc_hid_report, mouse_
     taphold_init();
 
     // Init the double tap state
-    double_tap_init();
+    double_tap_system()->init(NULL);
 
     // Init combos
     combo_init(combos);
@@ -134,6 +135,7 @@ void keyboard_reset(void) {
     mouse_reset();
     leds_reset();
     layers_reset();
+    double_tap_system()->reset();
     matrix_reset();
 }
 
@@ -223,7 +225,7 @@ void keyboard_post_scan(void) {
         ignore_remaining_keypresses = taphold_update() || ignore_remaining_keypresses;
 
         // Double taps
-        ignore_remaining_keypresses = double_tap_update() || ignore_remaining_keypresses;
+        ignore_remaining_keypresses = double_tap_system()->update() || ignore_remaining_keypresses;
 
         // Regular keypresses that haven't been suppressed by other functionalities
         if (!ignore_remaining_keypresses) {

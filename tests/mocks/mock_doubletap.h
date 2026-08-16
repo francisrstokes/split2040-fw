@@ -11,13 +11,10 @@ extern "C" {
 
 #include "machines/machine.h"
 #include "doubletap.h"
+#include "mock_keyboard_system.h"
 
 typedef struct StDoubleTap_t {
-    void (*double_tap_init)(void);
-    void (*double_tap_reset)(void);
-    bool (*double_tap_update)(void);
-    bool (*double_tap_on_key_release)(uint row, uint col, keymap_entry_t key);
-    bool (*double_tap_on_key_press)(uint row, uint col, keymap_entry_t key);
+    const keyboard_system_t* (*double_tap_system)(void);
 } StDoubleTap_t;
 
 typedef struct DoubleTapInternals_t {
@@ -26,6 +23,7 @@ typedef struct DoubleTapInternals_t {
     // Private functions
     bool (*double_tap_is_matching_key)(double_tap_data_t* dt, keymap_entry_t key);
     ll_node_t* (*double_tap_find_active)(keymap_entry_t key);
+    KB_SYSTEM_INTERNALS_PRIVATE_FNS(double_tap)
 } DoubleTapInternals_t;
 
 // Mock API

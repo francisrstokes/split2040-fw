@@ -81,7 +81,7 @@ TEST(double_tap, double_tap_init_initialises_allocator)
     .withParameter("elem_size", sizeof(double_tap_data_t));
 
     // Production call
-    double_tap_init();
+    double_tap_system()->init(NULL);
 
     // Checks
     // (none)
@@ -96,7 +96,7 @@ TEST(double_tap, double_tap_reset_clears_all_ongoing_dts)
     mock().expectOneCall("lla_free_all").withParameter("alloc", &internals->double_taps->allocator);
 
     // Production call
-    double_tap_reset();
+    double_tap_system()->reset();
 
     // Checks
     // (none)
@@ -111,7 +111,7 @@ TEST(double_tap, double_tap_on_key_press_ignores_non_dt_keys)
     // (none)
 
     // Production call
-    bool result = double_tap_on_key_press(4, 2, key);
+    bool result = double_tap_system()->on_press(4, 2, key);
 
     // Checks
     CHECK_EQUAL(false, result);
@@ -133,7 +133,7 @@ TEST(double_tap, double_tap_on_key_press_first_press)
     mock().expectOneCall("matrix_mark_key_as_handled").withParameter("row", 4).withParameter("col", 2);
 
     // Production call
-    bool result = double_tap_on_key_press(4, 2, key);
+    bool result = double_tap_system()->on_press(4, 2, key);
 
     // Checks
     CHECK_EQUAL(true, result);
@@ -172,7 +172,7 @@ TEST(double_tap, double_tap_on_key_press_second_press)
     }
 
     // Production call
-    bool result = double_tap_on_key_press(4, 2, key);
+    bool result = double_tap_system()->on_press(4, 2, key);
 
     // Checks
     CHECK_EQUAL(true, result);
@@ -216,7 +216,7 @@ TEST(double_tap, double_tap_on_key_press_different_key)
 
 
     // Production call
-    bool result = double_tap_on_key_press(5, 3, key2);
+    bool result = double_tap_system()->on_press(5, 3, key2);
 
     // Checks
     CHECK_EQUAL(true, result);
@@ -238,7 +238,7 @@ TEST(double_tap, double_tap_on_key_release_ignores_non_dt_keys)
     // (none)
 
     // Production call
-    bool result = double_tap_on_key_release(4, 2, key);
+    bool result = double_tap_system()->on_release(4, 2, key);
 
     // Checks
     CHECK_EQUAL(false, result);
@@ -270,7 +270,7 @@ TEST(double_tap, double_tap_on_key_release_was_waiting)
     }
 
     // Production call
-    bool result = double_tap_on_key_release(4, 2, key);
+    bool result = double_tap_system()->on_release(4, 2, key);
 
     // Checks
     CHECK_EQUAL(true, result);
@@ -309,7 +309,7 @@ TEST(double_tap, double_tap_on_key_release_was_in_a_resolved_state)
     }
 
     // Production call
-    bool result = double_tap_on_key_release(4, 2, key);
+    bool result = double_tap_system()->on_release(4, 2, key);
 
     // Checks
     CHECK_EQUAL(false, result);
@@ -324,7 +324,7 @@ TEST(double_tap, double_tap_update_no_ongoing_double_taps)
     // Expectations
 
     // Production call
-    bool result = double_tap_update();
+    bool result = double_tap_system()->update();
 
     // Checks
     CHECK_EQUAL(false, result);
@@ -356,7 +356,7 @@ TEST(double_tap, double_tap_update_timer_not_yet_expired)
     }
 
     // Production call
-    bool result = double_tap_update();
+    bool result = double_tap_system()->update();
 
     // Checks
     CHECK_EQUAL(true, result);
@@ -397,7 +397,7 @@ TEST(double_tap, double_tap_update_held_press_resolves_to_single_tap)
     mock().expectOneCall("keyboard_send_key").withParameter("key", KC_A);
 
     // Production call
-    bool result = double_tap_update();
+    bool result = double_tap_system()->update();
 
     // Checks
     CHECK_EQUAL(false, result);
@@ -438,7 +438,7 @@ TEST(double_tap, double_tap_update_press_and_released_key_sends_key_and_clears_d
     mock().expectOneCall("keyboard_send_key").withParameter("key", KC_A);
 
     // Production call
-    bool result = double_tap_update();
+    bool result = double_tap_system()->update();
 
     // Checks
     CHECK_EQUAL(false, result);
@@ -473,7 +473,7 @@ TEST(double_tap, double_tap_update_double_tapped_key)
     mock().expectOneCall("keyboard_send_key").withParameter("key", KC_B);
 
     // Production call
-    bool result = double_tap_update();
+    bool result = double_tap_system()->update();
 
     // Checks
     CHECK_EQUAL(false, result);
