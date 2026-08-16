@@ -8,6 +8,7 @@
 
 #include "pico/types.h"
 #include "keyboard.h"
+#include "keyboard_system.h"
 
 // typedefs
 typedef enum macro_type_t {
@@ -35,10 +36,5 @@ typedef struct macro_t {
 #define MACRO_UNUSED                   { .type = macro_type_unused, .active = false }
 
 // public functions
-void macro_init(macro_t* macro_table);
-void macro_reset(void);
-bool macro_on_key_press(uint row, uint col, keymap_entry_t key);
-bool macro_on_key_release(uint row, uint col, keymap_entry_t key);
-bool macro_on_virtual_key(keymap_entry_t key);
-bool macro_update(void);
+const keyboard_system_t* macro_system(void);
 bool macro_any_active(void);
