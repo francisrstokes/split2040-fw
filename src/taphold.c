@@ -35,8 +35,9 @@ static int16_t taphold_get_time_offset_for_key(keymap_entry_t key) {
     return 0;
 }
 
-// public functions
-void taphold_init(void) {
+static void taphold_init(void* init_data) {
+    (void)init_data;
+
     lla_init(
         &tapholds.allocator,
         tapholds.data_array,
@@ -46,11 +47,11 @@ void taphold_init(void) {
     );
 }
 
-void taphold_reset(void) {
+static void taphold_reset(void) {
     lla_free_all(&tapholds.allocator);
 }
 
-bool taphold_update(void) {
+static bool taphold_update(void) {
     ll_node_t* current_node = tapholds.allocator.active_head;
     taphold_data_t* current_taphold = NULL;
     keymap_entry_t key = KC_NONE;
@@ -80,7 +81,7 @@ bool taphold_update(void) {
     return there_are_active_undetermined_tapholds;
 }
 
-bool taphold_on_key_release(uint row, uint col, keymap_entry_t key) {
+static bool taphold_on_release(uint row, uint col, keymap_entry_t key) {
     ll_node_t* current_node = tapholds.allocator.active_head;
     taphold_data_t* current_taphold = NULL;
     keymap_entry_t tap_key = KC_NONE;
@@ -118,7 +119,7 @@ bool taphold_on_key_release(uint row, uint col, keymap_entry_t key) {
     return key_handled;
 }
 
-bool taphold_on_key_press(uint row, uint col, keymap_entry_t key) {
+static bool taphold_on_press(uint row, uint col, keymap_entry_t key) {
     if ((key & ENTRY_TYPE_MASK) == ENTRY_TYPE_TAPHOLD) {
         // Create a new taphold node from the pool
         ll_node_t* taphold_node = lla_alloc_tail(&tapholds.allocator);
@@ -136,7 +137,27 @@ bool taphold_on_key_press(uint row, uint col, keymap_entry_t key) {
     return false;
 }
 
-bool tapholds_any_active(void) {
+static bool taphold_on_virtual_press(keymap_entry_t key) {
+    (void)key;
+    return false;
+}
+
+// public functions
+const keyboard_system_t* taphold_system(void) {
+    static const keyboard_system_t system = {
+        .name = "taphold",
+        .init = taphold_init,
+        .reset = taphold_reset,
+        .update = taphold_update,
+        .on_press = taphold_on_press,
+        .on_virtual_press = taphold_on_virtual_press,
+        .on_release = taphold_on_release,
+    };
+
+    return &system;
+}
+
+bool taphold_any_active(void) {
     ll_node_t* current_node = tapholds.allocator.active_head;
     taphold_data_t* current_taphold = NULL;
     keymap_entry_t tap_key = KC_NONE;

@@ -61,26 +61,26 @@ static void keyboard_handle_remaining_presses(void) {
 }
 
 static void keyboard_on_key_release(uint row, uint col, keymap_entry_t key) {
-    if (mouse_on_key_release(row, col, key)) return;
+    if (mouse_system()->on_release(row, col, key)) return;
     if (kbc_on_key_release(row, col, key)) return;
     if (macro_system()->on_release(row, col, key)) return;
     if (combo_system()->on_release(row, col, key)) return;
     if (layers_system()->on_release(row, col, key)) return;
-    if (taphold_on_key_release(row, col, key)) return;
+    if (taphold_system()->on_release(row, col, key)) return;
     if (double_tap_system()->on_release(row, col, key)) return;
 }
 
 static void keyboard_on_key_press(uint row, uint col, keymap_entry_t key) {
-    if (mouse_on_key_press(row, col, key)) return;
+    if (mouse_system()->on_press(row, col, key)) return;
     if (kbc_on_key_press(row, col, key)) return;
     if (macro_system()->on_press(row, col, key)) return;
 
-    if (!tapholds_any_active()) {
+    if (!taphold_any_active()) {
         if (combo_system()->on_press(row, col, key)) return;
     }
 
     if (layers_system()->on_press(row, col, key)) return;
-    if (taphold_on_key_press(row, col, key)) return;
+    if (taphold_system()->on_press(row, col, key)) return;
     if (double_tap_system()->on_press(row, col, key)) return;
 }
 
@@ -110,10 +110,10 @@ void keyboard_init(uint8_t* keyboard_hid_report, uint16_t* cc_hid_report, mouse_
     keyboard_bootmagic();
 
     // Init mouse
-    mouse_init(mouse_hid_report);
+    mouse_system()->init(mouse_hid_report);
 
     // Init tapholds
-    taphold_init();
+    taphold_system()->init(NULL);
 
     // Init the double tap state
     double_tap_system()->init(NULL);
@@ -130,9 +130,9 @@ void keyboard_init(uint8_t* keyboard_hid_report, uint16_t* cc_hid_report, mouse_
 
 void keyboard_reset(void) {
     combo_system()->reset();
-    taphold_reset();
+    taphold_system()->reset();
     macro_system()->reset();
-    mouse_reset();
+    mouse_system()->reset();
     layers_system()->reset();
     double_tap_system()->reset();
     leds_reset();
@@ -215,14 +215,14 @@ void keyboard_post_scan(void) {
         }
     }
 
-    mouse_update();
+    mouse_system()->update();
 
     if (!macro_system()->update()) {
         // Handle combos before layer change operations to allow for the layer changing keys themselves to be used for combos
         bool ignore_remaining_keypresses = combo_system()->update();
 
         // Tapholds
-        ignore_remaining_keypresses = taphold_update() || ignore_remaining_keypresses;
+        ignore_remaining_keypresses = taphold_system()->update() || ignore_remaining_keypresses;
 
         // Double taps
         ignore_remaining_keypresses = double_tap_system()->update() || ignore_remaining_keypresses;

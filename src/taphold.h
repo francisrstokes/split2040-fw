@@ -9,6 +9,7 @@
 #include "pico/types.h"
 #include "ll_alloc.h"
 #include "keyboard.h"
+#include "keyboard_system.h"
 
 // typedefs
 typedef struct taphold_data_t {
@@ -25,9 +26,5 @@ typedef struct taphold_state_t {
 } taphold_state_t;
 
 // public functions
-void taphold_init(void);
-void taphold_reset(void);
-bool taphold_on_key_release(uint row, uint col, keymap_entry_t key);
-bool taphold_on_key_press(uint row, uint col, keymap_entry_t key);
-bool taphold_update(void);
-bool tapholds_any_active(void);
+const keyboard_system_t* taphold_system(void);
+bool taphold_any_active(void);

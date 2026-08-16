@@ -8,10 +8,7 @@
 
 #include "pico/types.h"
 #include "keyboard.h"
+#include "keyboard_system.h"
 
 // public functions
-void mouse_init(mouse_report_t* mouse_report_ref);
-void mouse_reset(void);
-bool mouse_on_key_release(uint row, uint col, keymap_entry_t key);
-bool mouse_on_key_press(uint row, uint col, keymap_entry_t key);
-bool mouse_update(void);
+const keyboard_system_t* mouse_system(void);
