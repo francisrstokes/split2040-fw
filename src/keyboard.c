@@ -65,7 +65,7 @@ static void keyboard_on_key_release(uint row, uint col, keymap_entry_t key) {
     if (kbc_on_key_release(row, col, key)) return;
     if (macro_on_key_release(row, col, key)) return;
     if (combo_on_key_release(row, col, key)) return;
-    if (layers_on_key_release(row, col, key)) return;
+    if (layers_system()->on_release(row, col, key)) return;
     if (taphold_on_key_release(row, col, key)) return;
     if (double_tap_system()->on_release(row, col, key)) return;
 }
@@ -79,7 +79,7 @@ static void keyboard_on_key_press(uint row, uint col, keymap_entry_t key) {
         if (combo_on_key_press(row, col, key)) return;
     }
 
-    if (layers_on_key_press(row, col, key)) return;
+    if (layers_system()->on_press(row, col, key)) return;
     if (taphold_on_key_press(row, col, key)) return;
     if (double_tap_system()->on_press(row, col, key)) return;
 }
@@ -87,7 +87,7 @@ static void keyboard_on_key_press(uint row, uint col, keymap_entry_t key) {
 static void keyboard_handle_virtual_key(keymap_entry_t key) {
     if (kbc_on_virtual_key(key)) return;
     if (macro_on_virtual_key(key)) return;
-    if (layers_on_virtual_key(key)) return;
+    if (layers_system()->on_virtual_press(key)) return;
     if (double_tap_system()->on_virtual_press(key)) return;
 }
 
@@ -124,8 +124,8 @@ void keyboard_init(uint8_t* keyboard_hid_report, uint16_t* cc_hid_report, mouse_
     // Init macros
     macro_init(macros);
 
-    // Set the initial layer
-    layers_set(LAYER_QWERTY);
+    // Init layers
+    layers_system()->init(NULL);
 }
 
 void keyboard_reset(void) {
@@ -133,9 +133,9 @@ void keyboard_reset(void) {
     taphold_reset();
     macro_reset();
     mouse_reset();
-    leds_reset();
-    layers_reset();
+    layers_system()->reset();
     double_tap_system()->reset();
+    leds_reset();
     matrix_reset();
 }
 

@@ -8,6 +8,7 @@
 
 #include "pico/types.h"
 #include "keyboard.h"
+#include "keyboard_system.h"
 
 // typedefs
 typedef struct layer_state_t {
@@ -16,10 +17,7 @@ typedef struct layer_state_t {
 } layer_state_t;
 
 // public functions
-void layers_reset(void);
-bool layers_on_key_press(uint row, uint col, keymap_entry_t key);
-bool layers_on_key_release(uint row, uint col, keymap_entry_t key);
-bool layers_on_virtual_key(keymap_entry_t key);
+const keyboard_system_t* layers_system(void);
 uint8_t layers_get_current(void);
 uint8_t layers_get_base(void);
 void layers_set(uint8_t layer);

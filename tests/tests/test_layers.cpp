@@ -37,7 +37,7 @@ TEST(layers, layers_on_key_press_ignores_non_layer_keys)
     // (none)
 
     // Production call
-    bool result = layers_on_key_press(4, 2, KC_A);
+    bool result = layers_system()->on_press(4, 2, KC_A);
 
     // Checks
     CHECK_EQUAL(false, result);
@@ -53,7 +53,7 @@ TEST(layers, layers_on_key_press_switches_layer)
     mock().expectOneCall("matrix_mark_key_as_handled").withParameter("row", 4).withParameter("col", 2);
 
     // Production call
-    bool result = layers_on_key_press(4, 2, MO(5));
+    bool result = layers_system()->on_press(4, 2, MO(5));
 
     // Checks
     CHECK_EQUAL(true, result);
@@ -69,7 +69,7 @@ TEST(layers, layers_on_key_release_ignores_non_layer_keys)
     // (none)
 
     // Production call
-    bool result = layers_on_key_release(4, 2, KC_A);
+    bool result = layers_system()->on_release(4, 2, KC_A);
 
     // Checks
     CHECK_EQUAL(false, result);
@@ -86,7 +86,7 @@ TEST(layers, layers_on_key_release_switches_layer_back_to_base)
     mock().expectOneCall("matrix_suppress_held_until_release");
 
     // Production call
-    bool result = layers_on_key_release(5, 2, MO(5));
+    bool result = layers_system()->on_release(5, 2, MO(5));
 
     // Checks
     CHECK_EQUAL(true, result);
@@ -102,7 +102,7 @@ TEST(layers, layers_on_virtual_key_ignores_non_layer_keys)
     // (none)
 
     // Production call
-    bool result = layers_on_virtual_key(KC_A);
+    bool result = layers_system()->on_virtual_press(KC_A);
 
     // Checks
     CHECK_EQUAL(false, result);
@@ -118,7 +118,7 @@ TEST(layers, layers_on_virtual_key_changes_layer)
     // (none)
 
     // Production call
-    bool result = layers_on_virtual_key(MO(5));
+    bool result = layers_system()->on_virtual_press(MO(5));
 
     // Checks
     CHECK_EQUAL(true, result);
@@ -179,7 +179,7 @@ TEST(layers, layers_reset_restores_base)
     // (none)
 
     // Production call
-    layers_reset();
+    layers_system()->reset();
 
     // Checks
     CHECK_EQUAL(42, internals->layer_state->current);

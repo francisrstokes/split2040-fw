@@ -11,12 +11,10 @@ extern "C" {
 
 #include "machines/machine.h"
 #include "layers.h"
+#include "mock_keyboard_system.h"
 
 typedef struct StLayers_t {
-    void (*layers_reset)(void);
-    bool (*layers_on_key_press)(uint row, uint col, keymap_entry_t key);
-    bool (*layers_on_key_release)(uint row, uint col, keymap_entry_t key);
-    bool (*layers_on_virtual_key)(keymap_entry_t key);
+    KB_SYSTEM_FN_PTR(layers);
     uint8_t (*layers_get_current)(void);
     uint8_t (*layers_get_base)(void);
     void (*layers_set)(uint8_t layer);
@@ -24,6 +22,9 @@ typedef struct StLayers_t {
 
 typedef struct LayersInternals_t {
     layer_state_t* layer_state;
+
+    // private functions
+    KB_SYSTEM_INTERNALS_PRIVATE_FNS(layers)
 } LayersInternals_t;
 
 // Mock API
