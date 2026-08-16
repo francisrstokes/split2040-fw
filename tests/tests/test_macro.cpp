@@ -49,7 +49,7 @@ TEST(macro, macro_init_sets_macro_table_pointer)
     // (none)
 
     // Production call
-    macro_init(macro_table);
+    macro_system()->init(macro_table);
 
     // Checks
     POINTERS_EQUAL(macro_table, *internals->macros);
@@ -74,7 +74,7 @@ TEST(macro, macro_on_key_press_macro_starts)
     // (none)
 
     // Production call
-    bool started = macro_on_key_press(0, 0, MACRO(2));
+    bool started = macro_system()->on_press(0, 0, MACRO(2));
 
     // Checks
     CHECK(started);
@@ -104,7 +104,7 @@ TEST(macro, macro_on_key_press_non_macro_key)
     // (none)
 
     // Production call
-    bool started = macro_on_key_press(0, 0, KC_ENTER);
+    bool started = macro_system()->on_press(0, 0, KC_ENTER);
 
     // Checks
     CHECK_FALSE(started);
@@ -148,7 +148,7 @@ TEST(macro, macro_update_sends_macro_keys)
         }
 
         // Production call
-        bool macro_active = macro_update();
+        bool macro_active = macro_system()->update();
 
         // Checks
         if (i < 3) {

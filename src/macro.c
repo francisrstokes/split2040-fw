@@ -35,12 +35,11 @@ static void macro_check_any_active(void) {
     any_macro_active = false;
 }
 
-// public functions
-void macro_init(macro_t* macro_table) {
-    macros = macro_table;
+static void macro_init(void* init_data) {
+    macros = (macro_t*)init_data;
 }
 
-void macro_reset(void) {
+static void macro_reset(void) {
     any_macro_active = false;
     for (uint macro_index = 0; macro_index < MACRO_MAX; macro_index++) {
         if (macros[macro_index].type == macro_type_unused) continue;
@@ -48,7 +47,7 @@ void macro_reset(void) {
     }
 }
 
-bool macro_on_key_press(uint row, uint col, keymap_entry_t key) {
+static bool macro_on_press(uint row, uint col, keymap_entry_t key) {
     if ((key & ENTRY_TYPE_MASK) == ENTRY_TYPE_MACRO) {
         macro_start(key & MACRO_INDEX_MASK);
         return true;
@@ -56,15 +55,15 @@ bool macro_on_key_press(uint row, uint col, keymap_entry_t key) {
     return false;
 }
 
-bool macro_on_key_release(uint row, uint col, keymap_entry_t key) {
+static bool macro_on_release(uint row, uint col, keymap_entry_t key) {
     return false;
 }
 
-bool macro_on_virtual_key(keymap_entry_t key) {
-    return macro_on_key_press(0xff, 0xff, key);
+static bool macro_on_virtual_press(keymap_entry_t key) {
+    return macro_on_press(0xff, 0xff, key);
 }
 
-bool macro_update(void) {
+static bool macro_update(void) {
     bool cleared_sent_keys = false;
 
     for (uint macro_index = 0; macro_index < MACRO_MAX; macro_index++) {
@@ -111,6 +110,21 @@ bool macro_update(void) {
     }
 
     return any_macro_active;
+}
+
+// public functions
+const keyboard_system_t* macro_system(void) {
+    static const keyboard_system_t system = {
+        .name = "macro",
+        .init = macro_init,
+        .reset = macro_reset,
+        .update = macro_update,
+        .on_press = macro_on_press,
+        .on_virtual_press = macro_on_virtual_press,
+        .on_release = macro_on_release,
+    };
+
+    return &system;
 }
 
 bool macro_any_active(void) {

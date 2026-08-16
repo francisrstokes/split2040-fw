@@ -11,14 +11,10 @@ extern "C" {
 
 #include "machines/machine.h"
 #include "macro.h"
+#include "mock_keyboard_system.h"
 
 typedef struct StMacro_t {
-    void (*macro_init)(macro_t* macro_table);
-    void (*macro_reset)(void);
-    bool (*macro_on_key_press)(uint row, uint col, keymap_entry_t key);
-    bool (*macro_on_key_release)(uint row, uint col, keymap_entry_t key);
-    bool (*macro_on_virtual_key)(keymap_entry_t key);
-    bool (*macro_update)(void);
+    KB_SYSTEM_FN_PTR(macro);
     bool (*macro_any_active)(void);
 } StMacro_t;
 
@@ -26,6 +22,9 @@ typedef struct MacroInternals_t {
     volatile macro_t** macros;
     const uint8_t (*ascii_to_hid_kc)[128][2];
     bool* any_macro_active;
+
+    // private functions
+    KB_SYSTEM_INTERNALS_PRIVATE_FNS(macro)
 } MacroInternals_t;
 
 // Mock API
