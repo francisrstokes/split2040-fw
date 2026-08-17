@@ -24,6 +24,7 @@ function(add_keyboard_target NAME)
         src/layers.c
         src/macro.c
         src/ll_alloc.c
+        src/ll_iter.c
         src/ws2812.c
         src/color.c
         src/leds.c
