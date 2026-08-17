@@ -1,4 +1,3 @@
-// mock_ll_alloc.c
 #include "mock_ll_alloc.h"
 #include "CppUTestExt/MockSupport_c.h"
 
