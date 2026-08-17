@@ -1,5 +1,6 @@
 #include "mock_keyboard.h"
 #include "CppUTestExt/MockSupport_c.h"
+#include "mock_keyboard_system.h"
 #include <stdio.h>
 
 // #define keyboard_init                 prod_keyboard_init
@@ -116,6 +117,8 @@ static void mock_keyboard_on_scan_complete(const uint8_t* hid_report) {
     ->withConstPointerParameters("hid_report", (const void*)hid_report);
 }
 
+KB_SYSTEM_MOCKS(kb_user)
+
 // Function pointer structs
 static const StKeyboard_t MockStruct = {
     .keyboard_init = mock_keyboard_init,
@@ -131,9 +134,7 @@ static const StKeyboard_t MockStruct = {
     .keyboard_set_keymap_ptr = mock_keyboard_set_keymap_ptr,
 
     // weak functions to be overridden by specific keyboards
-    .kbc_on_key_press = mock_kbc_on_key_press,
-    .kbc_on_key_release = mock_kbc_on_key_release,
-    .kbc_on_virtual_key = mock_kbc_on_virtual_key,
+    .kb_user_system = mock_kb_user_system,
     .keyboard_before_send_key = mock_keyboard_before_send_key,
     .keyboard_on_scan_complete = mock_keyboard_on_scan_complete,
 };
@@ -152,9 +153,7 @@ static const StKeyboard_t MockStruct = {
 //     .keyboard_set_keymap_ptr = prod_keyboard_set_keymap_ptr,
 
 //     // weak functions to be overridden by specific keyboards
-//     .kbc_on_key_press = prod_kbc_on_key_press,
-//     .kbc_on_key_release = prod_kbc_on_key_release,
-//     .kbc_on_virtual_key = prod_kbc_on_virtual_key,
+//     .kb_user_system = prod_kb_user_system,
 //     .keyboard_before_send_key = prod_keyboard_before_send_key,
 //     .keyboard_on_scan_complete = prod_keyboard_on_scan_complete,
 // };
@@ -207,14 +206,8 @@ void keyboard_on_led_status_report(uint8_t led_status) {
 void keyboard_set_keymap_ptr(void* new_keymap) {
     return ActiveStruct.keyboard_set_keymap_ptr(new_keymap);
 }
-bool kbc_on_key_press(uint row, uint col, keymap_entry_t key) {
-    return ActiveStruct.kbc_on_key_press(row, col, key);
-}
-bool kbc_on_key_release(uint row, uint col, keymap_entry_t key) {
-    return ActiveStruct.kbc_on_key_release(row, col, key);
-}
-bool kbc_on_virtual_key(keymap_entry_t key) {
-    return ActiveStruct.kbc_on_virtual_key(key);
+const keyboard_system_t* kb_user_system(void) {
+    return ActiveStruct.kb_user_system();
 }
 bool keyboard_before_send_key(keymap_entry_t* key) {
     return ActiveStruct.keyboard_before_send_key(key);

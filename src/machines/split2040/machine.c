@@ -86,12 +86,20 @@ macro_t macros[MACRO_MAX] = {
     [7] = MACRO_UNUSED
 };
 
-// overridden weak functions
-void layer_post_set(uint8_t layer) {
-    leds_set_color(0, layer_colors[layer][0], layer_colors[layer][1], layer_colors[layer][2]);
+// kb user system
+static void split2040_init(void* init_data) {
+    (void)init_data;
 }
 
-bool kbc_on_key_press(uint row, uint col, keymap_entry_t key) {
+static bool split2040_update(void) {
+    return false;
+}
+
+static void split2040_reset(void) {
+
+}
+
+static bool split2040_on_press(uint row, uint col, keymap_entry_t key) {
     if ((key & ENTRY_TYPE_MASK) == ENTRY_TYPE_KBC) {
         switch (key & KBC_INDEX_MASK) {
             case KBC_COM_BRIGHTNESS_DOWN:       leds_brightness_down();     matrix_suppress_key_until_release(row, col);    return true;
@@ -105,6 +113,33 @@ bool kbc_on_key_press(uint row, uint col, keymap_entry_t key) {
     }
 
     return false;
+}
+
+static bool split2040_on_release(uint row, uint col, keymap_entry_t key) {
+    return false;
+}
+
+static bool split2040_on_virtual_press(keymap_entry_t key) {
+    return false;
+}
+
+// overridden weak functions
+const keyboard_system_t* kb_user_system(void) {
+    static const keyboard_system_t system = {
+        .name = "split2040",
+        .init = split2040_init,
+        .reset = split2040_reset,
+        .update = split2040_update,
+        .on_press = split2040_on_press,
+        .on_virtual_press = split2040_on_virtual_press,
+        .on_release = split2040_on_release,
+    };
+
+    return &system;
+}
+
+void layer_post_set(uint8_t layer) {
+    leds_set_color(0, layer_colors[layer][0], layer_colors[layer][1], layer_colors[layer][2]);
 }
 
 void keyboard_on_led_status_report(uint8_t led_status) {

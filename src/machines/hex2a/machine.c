@@ -96,12 +96,20 @@ macro_t macros[MACRO_MAX] = {
     [7] = MACRO_UNUSED
 };
 
-// overridden weak functions
-void layer_post_set(uint8_t layer) {
-    leds_set_color(0, layer_colors[layer][0], layer_colors[layer][1], layer_colors[layer][2]);
+// kb user system
+static void hex2a_init(void* init_data) {
+    (void)init_data;
 }
 
-bool kbc_on_key_press(uint row, uint col, keymap_entry_t key) {
+static bool hex2a_update(void) {
+    return false;
+}
+
+static void hex2a_reset(void) {
+    snake_mode_active = false;
+}
+
+static bool hex2a_on_press(uint row, uint col, keymap_entry_t key) {
     if ((key & ENTRY_TYPE_MASK) == ENTRY_TYPE_KBC) {
         switch (key & KBC_INDEX_MASK) {
             case KBC_COM_BRIGHTNESS_DOWN:       leds_brightness_down();     matrix_suppress_key_until_release(row, col);    return true;
@@ -120,6 +128,33 @@ bool kbc_on_key_press(uint row, uint col, keymap_entry_t key) {
     }
 
     return false;
+}
+
+static bool hex2a_on_release(uint row, uint col, keymap_entry_t key) {
+    return false;
+}
+
+static bool hex2a_on_virtual_press(keymap_entry_t key) {
+    return false;
+}
+
+// overridden weak functions
+const keyboard_system_t* kb_user_system(void) {
+    static const keyboard_system_t system = {
+        .name = "hex2a",
+        .init = hex2a_init,
+        .reset = hex2a_reset,
+        .update = hex2a_update,
+        .on_press = hex2a_on_press,
+        .on_virtual_press = hex2a_on_virtual_press,
+        .on_release = hex2a_on_release,
+    };
+
+    return &system;
+}
+
+void layer_post_set(uint8_t layer) {
+    leds_set_color(0, layer_colors[layer][0], layer_colors[layer][1], layer_colors[layer][2]);
 }
 
 bool keyboard_before_send_key(keymap_entry_t* key) {

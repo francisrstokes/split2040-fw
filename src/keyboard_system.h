@@ -1,6 +1,6 @@
 #pragma once
 
-#include "keyboard.h"
+#include "keyboard_types.h"
 
 // typedefs
 typedef struct keyboard_system_t {
