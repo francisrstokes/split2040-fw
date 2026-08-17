@@ -6,6 +6,7 @@
 #include "mock_keyboard.h"
 #include "mock_matrix.h"
 #include "mock_ll_alloc.h"
+#include "mock_ll_iter.h"
 
 #include <vector>
 
@@ -15,6 +16,7 @@ TEST_GROUP(double_tap) {
 
     void setup() {
         mock_lla_use_mocks(false);
+        mock_ll_iter_use_mocks(false);
         mock_double_tap_use_mocks(false);
 
         reset_environment();
@@ -28,6 +30,7 @@ TEST_GROUP(double_tap) {
 
         mock_double_tap_use_mocks(true);
         mock_lla_use_mocks(true);
+        mock_ll_iter_use_mocks(true);
 
         reset_environment();
     }
