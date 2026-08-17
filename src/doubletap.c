@@ -6,6 +6,7 @@
 
 #include "doubletap.h"
 #include "matrix.h"
+#include "ll_iter.h"
 
 // statics
 static double_tap_state_t double_taps = {0};
@@ -16,17 +17,13 @@ static bool double_tap_is_matching_key(double_tap_data_t* dt, keymap_entry_t key
 }
 
 static ll_node_t* double_tap_find_active(keymap_entry_t key) {
-    ll_node_t* dt_node = double_taps.allocator.active_head;
-    double_tap_data_t* current_dt = NULL;
+    ll_iter_t iter = {0};
+    ll_iter_init(&iter, &double_taps.allocator, true);
 
-    while (dt_node != NULL) {
-        current_dt = (double_tap_data_t*)dt_node->data;
-        if (double_tap_is_matching_key(current_dt, key)) {
-            return dt_node;
+    while (ll_iter_next(&iter)) {
+        if (double_tap_is_matching_key((double_tap_data_t*)iter.current_data, key)) {
+            return iter.current_node;
         }
-
-        // On to the next
-        dt_node = dt_node->next;
     }
 
     return NULL;
@@ -49,15 +46,17 @@ static void double_tap_reset(void) {
 }
 
 static bool double_tap_update(void) {
-    ll_node_t* dt_node = double_taps.allocator.active_head;
+    ll_iter_t iter = {0};
+    ll_iter_init(&iter, &double_taps.allocator, true);
     double_tap_data_t* current_dt = NULL;
+
     keymap_entry_t key = KC_NONE;
     bool node_became_inactive = false;
     bool there_are_active_undetermined_double_taps = false;
 
-    while (dt_node != NULL) {
+    while (ll_iter_next(&iter)) {
         node_became_inactive = false;
-        current_dt = (double_tap_data_t*)dt_node->data;
+        current_dt = (double_tap_data_t*)iter.current_data;
         key = keyboard_resolve_key_on_layer(current_dt->row, current_dt->col, current_dt->layer);
 
         // Update the timer
@@ -86,14 +85,10 @@ static bool double_tap_update(void) {
         }
 
         if (node_became_inactive) {
-            ll_node_t* next_node = dt_node->next;
-            lla_free(&double_taps.allocator, dt_node);
-            dt_node = next_node;
-            continue;
+            ll_node_t* next_node = iter.current_node->next;
+            lla_free(&double_taps.allocator, iter.current_node);
+            ll_iter_resume_from(&iter, next_node);
         }
-
-        // On to the next
-        dt_node = dt_node->next;
     }
 
     return there_are_active_undetermined_double_taps;
