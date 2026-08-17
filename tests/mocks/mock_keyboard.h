@@ -26,9 +26,7 @@ typedef struct StKeyboard_t {
     void (*keyboard_set_keymap_ptr)(void* new_keymap);
 
     // weak functions to be overridden by specific keyboards
-    bool (*kbc_on_key_press)(uint row, uint col, keymap_entry_t key);
-    bool (*kbc_on_key_release)(uint row, uint col, keymap_entry_t key);
-    bool (*kbc_on_virtual_key)(keymap_entry_t key);
+    const keyboard_system_t* (*kb_user_system)(void);
     bool (*keyboard_before_send_key)(keymap_entry_t* key);
     void (*keyboard_on_scan_complete)(const uint8_t* hid_report);
 } StKeyboard_t;

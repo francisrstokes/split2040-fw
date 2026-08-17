@@ -62,7 +62,7 @@ static void keyboard_handle_remaining_presses(void) {
 
 static void keyboard_on_key_release(uint row, uint col, keymap_entry_t key) {
     if (mouse_system()->on_release(row, col, key)) return;
-    if (kbc_on_key_release(row, col, key)) return;
+    if (kb_user_system()->on_release(row, col, key)) return;
     if (macro_system()->on_release(row, col, key)) return;
     if (combo_system()->on_release(row, col, key)) return;
     if (layers_system()->on_release(row, col, key)) return;
@@ -72,7 +72,7 @@ static void keyboard_on_key_release(uint row, uint col, keymap_entry_t key) {
 
 static void keyboard_on_key_press(uint row, uint col, keymap_entry_t key) {
     if (mouse_system()->on_press(row, col, key)) return;
-    if (kbc_on_key_press(row, col, key)) return;
+    if (kb_user_system()->on_press(row, col, key)) return;
     if (macro_system()->on_press(row, col, key)) return;
 
     if (!taphold_any_active()) {
@@ -85,7 +85,7 @@ static void keyboard_on_key_press(uint row, uint col, keymap_entry_t key) {
 }
 
 static void keyboard_handle_virtual_key(keymap_entry_t key) {
-    if (kbc_on_virtual_key(key)) return;
+    if (kb_user_system()->on_virtual_press(key)) return;
     if (macro_system()->on_virtual_press(key)) return;
     if (layers_system()->on_virtual_press(key)) return;
     if (double_tap_system()->on_virtual_press(key)) return;
@@ -126,6 +126,9 @@ void keyboard_init(uint8_t* keyboard_hid_report, uint16_t* cc_hid_report, mouse_
 
     // Init layers
     layers_system()->init(NULL);
+
+    // Init user keyboard system
+    kb_user_system()->init(NULL);
 }
 
 void keyboard_reset(void) {
@@ -135,6 +138,7 @@ void keyboard_reset(void) {
     mouse_system()->reset();
     layers_system()->reset();
     double_tap_system()->reset();
+    kb_user_system()->reset();
     leds_reset();
     matrix_reset();
 }
@@ -215,21 +219,22 @@ void keyboard_post_scan(void) {
         }
     }
 
-    mouse_system()->update();
+    if (!kb_user_system()->update()) {
+        mouse_system()->update();
+        if (!macro_system()->update()) {
+            // Handle combos before layer change operations to allow for the layer changing keys themselves to be used for combos
+            bool ignore_remaining_keypresses = combo_system()->update();
 
-    if (!macro_system()->update()) {
-        // Handle combos before layer change operations to allow for the layer changing keys themselves to be used for combos
-        bool ignore_remaining_keypresses = combo_system()->update();
+            // Tapholds
+            ignore_remaining_keypresses = taphold_system()->update() || ignore_remaining_keypresses;
 
-        // Tapholds
-        ignore_remaining_keypresses = taphold_system()->update() || ignore_remaining_keypresses;
+            // Double taps
+            ignore_remaining_keypresses = double_tap_system()->update() || ignore_remaining_keypresses;
 
-        // Double taps
-        ignore_remaining_keypresses = double_tap_system()->update() || ignore_remaining_keypresses;
-
-        // Regular keypresses that haven't been suppressed by other functionalities
-        if (!ignore_remaining_keypresses) {
-            keyboard_handle_remaining_presses();
+            // Regular keypresses that haven't been suppressed by other functionalities
+            if (!ignore_remaining_keypresses) {
+                keyboard_handle_remaining_presses();
+            }
         }
     }
 
@@ -266,17 +271,44 @@ void keyboard_set_keymap_ptr(void* new_keymap) {
     keymap_ptr = new_keymap;
 }
 
+// default user system functions, for when the user doesn't provide a system
+static void kb_user_init(void* init_data) {
+    (void)init_data;
+}
+
+static bool kb_user_update(void) {
+    return false;
+}
+
+static void kb_user_reset(void) {
+
+}
+
+static bool kb_user_on_press(uint row, uint col, keymap_entry_t key) {
+    return false;
+}
+
+static bool kb_user_on_release(uint row, uint col, keymap_entry_t key) {
+    return false;
+}
+
+static bool kb_user_on_virtual_press(keymap_entry_t key) {
+    return false;
+}
+
 // weak functions
-__attribute__ ((weak)) bool kbc_on_key_press(uint row, uint col, keymap_entry_t key) {
-    return false;
-}
+__attribute__ ((weak)) const keyboard_system_t* kb_user_system(void) {
+    static const keyboard_system_t system = {
+        .name = "kb_user_default",
+        .init = kb_user_init,
+        .reset = kb_user_reset,
+        .update = kb_user_update,
+        .on_press = kb_user_on_press,
+        .on_virtual_press = kb_user_on_virtual_press,
+        .on_release = kb_user_on_release,
+    };
 
-__attribute__ ((weak)) bool kbc_on_key_release(uint row, uint col, keymap_entry_t key) {
-    return false;
-}
-
-__attribute__ ((weak)) bool kbc_on_virtual_key(keymap_entry_t key) {
-    kbc_on_key_press(0xff, 0xff, key);
+    return &system;
 }
 
 __attribute__ ((weak)) bool keyboard_before_send_key(keymap_entry_t* key) {

@@ -8,22 +8,11 @@
 
 #include "pico/types.h"
 #include "hid.h"
+#include "keyboard_system.h"
 
 #include "usb_common.h"
 
 #include "machines/machine.h"
-
-// typedefs
-typedef uint32_t keymap_entry_t;
-
-/*
- .   31:28   .   27:24   .         23:16         .          15:8         .          7:0          .
- +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
- |   Type    |    Arg4   |          Arg8         |       Modifiers       |        keycode        |
- +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
- .        Byte 3         .        Byte 2         .        Byte 1         .         Byte 0        .
-
-*/
 
 // defines
 #define ENTRY_TYPE_MASK     (0xf0000000)
@@ -226,8 +215,6 @@ void keyboard_on_led_status_report(uint8_t led_status);
 void keyboard_set_keymap_ptr(void* new_keymap);
 
 // weak functions to be overridden by specific keyboards
-bool kbc_on_key_press(uint row, uint col, keymap_entry_t key);
-bool kbc_on_key_release(uint row, uint col, keymap_entry_t key);
-bool kbc_on_virtual_key(keymap_entry_t key);
+const keyboard_system_t* kb_user_system(void);
 bool keyboard_before_send_key(keymap_entry_t* key);
 void keyboard_on_scan_complete(const uint8_t* hid_report);
