@@ -299,6 +299,8 @@ static void kb_config_rx_complete(void) {
             macros[set_macro->index].type = set_macro->macro.macro_type;
             macros[set_macro->index].send_string.length = set_macro->macro.length;
             macros[set_macro->index].send_string.buffer = FLASH_MACRO(set_macro->index)->string;
+
+            has_uncommitted_state = true;
         } break;
 
         case KB_CONFIG_MSG_DUMP_CONFIG: {
@@ -323,6 +325,8 @@ static void kb_config_rx_complete(void) {
             combos[set_combo->index].key_out = FLASH_COMBO(set_combo->index)->key_out;
             combos[set_combo->index].state = combo_state_inactive;
             memcpy(combos[set_combo->index].keys, FLASH_COMBO(set_combo->index)->keys, sizeof(combos[set_combo->index].keys));
+
+            has_uncommitted_state = true;
         } break;
 
         case KB_CONFIG_MSG_GET_RING_BUFFER_DATA: {
