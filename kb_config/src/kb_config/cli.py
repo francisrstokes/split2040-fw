@@ -2,15 +2,18 @@ import argparse
 from time import sleep
 from .kb_config import KBConfig
 from .keyboard import KCParser, name_to_kc, print_layer
+from .interpret_config import ConfigInterpreter
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--key", "-k", nargs=4, action="append", help="Set a key. Example: `--key=0 1 2 \"KC(A)\"` set layer 0, row 1, col 2 to regular keycode 'A'")
-parser.add_argument("--combo", "-c", nargs='+', action="append", help="Set a combo. Example: `--combo=0 \"KC(A)\" \"KC(B)\" \"KC(C)\"` press 'A' and 'B' to get 'C'")
+parser.add_argument("--key", "-k", nargs=4, action="append", help="Set a key. Example: `--key 0 1 2 \"KC(A)\"` set layer 0, row 1, col 2 to regular keycode 'A'")
+parser.add_argument("--combo", "-c", nargs='+', action="append", help="Set a combo. Example: `--combo 0 \"KC(A)\" \"KC(B)\" \"KC(C)\"` press 'A' and 'B' to get 'C'")
+parser.add_argument("--macro", "-m", nargs='+', action="append", help="Set a macro. Example: `--macro 5 \"this string will be send\"` set macro 5 to send a string")
 parser.add_argument("--save", "-s", action="store_true", help="Save the current changes to flash. Happens after all other commands, before reset (if applicable)")
 parser.add_argument("--get-layer", "-l", type=int, help="Get and print the a keyboard layer")
 parser.add_argument("--reset", "-r", action='store_true', help="Reset to the bootloader. Happens after all other commands have been processed.")
 parser.add_argument("--list", action='store_true', help="Print a list of valid key names")
 parser.add_argument("--dump", type=str, help="Dump the config to a raw binary file with given filename")
+parser.add_argument("--interpret", type=str, help="Print a dumped keyboard config in human readable format")
 
 def main():
     args = parser.parse_args()
@@ -18,6 +21,12 @@ def main():
     if args.list:
         for keyname in name_to_kc.keys():
             print(keyname)
+        return
+
+    if args.interpret is not None:
+        with open(args.interpret, 'rb') as f:
+            config_dump = f.read()
+        print(ConfigInterpreter(config_dump).interpret())
         return
 
     kb = KBConfig()
@@ -28,7 +37,7 @@ def main():
         if args.get_layer < info.layer_count:
             layer_data = kb.get_layout(args.get_layer)
             in_rows = [layer_data[i:i+info.column_count] for i in range(0, len(layer_data), info.column_count)]
-            print_layer(in_rows)
+            print(print_layer(in_rows))
         else:
             print(f"layer out of range: {args.get_layer}/{info.layer_count-1}")
 
@@ -44,6 +53,13 @@ def main():
             resolved_keys = [key_parser.parse(k) for k in keys]
             resolved_key_out = key_parser.parse(key_out)
             kb.set_combo(int(index), resolved_keys, resolved_key_out, info.combo_max_size)
+
+    if args.macro is not None:
+            info = kb.get_info()
+            for index, send_string in args.macro:
+                if len(send_string) >= info.macro_max_size:
+                    raise Exception(f"String too long for macro (max={info.macro_max_size})")
+                kb.set_macro(int(index), bytes(send_string, "utf8"))
 
     if args.key is not None:
         for layer, row, col, key_str in args.key:
