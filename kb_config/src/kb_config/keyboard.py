@@ -457,41 +457,46 @@ def mo_to_str(key: int):
     action = key & 0xffff
     return f"MO({action})"
 
+def key_to_str(key: int):
+    if (key & ENTRY_TYPE_MASK) == ENTRY_TYPE_KC:
+        return kc_to_str(key)
+    elif (key & ENTRY_TYPE_MASK) == ENTRY_TYPE_LAYER:
+        return la_to_str(key)
+    elif (key & ENTRY_TYPE_MASK) == ENTRY_TYPE_TAPHOLD:
+        return th_to_str(key)
+    elif (key & ENTRY_TYPE_MASK) == ENTRY_TYPE_DOUBLE_TAP:
+        return dt_to_str(key)
+    elif (key & ENTRY_TYPE_MASK) == ENTRY_TYPE_MACRO:
+        return ma_to_str(key)
+    elif (key & ENTRY_TYPE_MASK) == ENTRY_TYPE_KBC:
+        return kbc_to_str(key)
+    elif (key & ENTRY_TYPE_MASK) == ENTRY_TYPE_CC:
+        return cc_to_str(key)
+    elif (key & ENTRY_TYPE_MASK) == ENTRY_TYPE_MOUSE:
+        return mo_to_str(key)
+    return '<bad key>'
+
 def print_layer(layer: List[List[int]]):
+    str_out = ''
     layer_strs = []
     longest = 0
     for row in layer:
         row_strs = []
         for key in row:
-            s = ''
-            if (key & ENTRY_TYPE_MASK) == ENTRY_TYPE_KC:
-                s = kc_to_str(key)
-            elif (key & ENTRY_TYPE_MASK) == ENTRY_TYPE_LAYER:
-                s = la_to_str(key)
-            elif (key & ENTRY_TYPE_MASK) == ENTRY_TYPE_TAPHOLD:
-                s = th_to_str(key)
-            elif (key & ENTRY_TYPE_MASK) == ENTRY_TYPE_DOUBLE_TAP:
-                s = dt_to_str(key)
-            elif (key & ENTRY_TYPE_MASK) == ENTRY_TYPE_MACRO:
-                s = ma_to_str(key)
-            elif (key & ENTRY_TYPE_MASK) == ENTRY_TYPE_KBC:
-                s = kbc_to_str(key)
-            elif (key & ENTRY_TYPE_MASK) == ENTRY_TYPE_CC:
-                s = cc_to_str(key)
-            elif (key & ENTRY_TYPE_MASK) == ENTRY_TYPE_MOUSE:
-                s = mo_to_str(key)
+            s = key_to_str(key)
             longest = max(longest, len(s))
             row_strs.append(s)
         layer_strs.append(row_strs)
 
     keys_bar = "+" + "+".join([ '-' * longest for _ in range(len(layer[0])) ]) + "+"
     for row_strs in layer_strs:
-        print(keys_bar)
-        print("|", end='')
+        str_out += keys_bar + '\n'
+        str_out += "|"
         for key in row_strs:
-            print(f"{key.center(longest)}", end='|')
-        print("")
-    print(keys_bar)
+            str_out += f"{key.center(longest)}" + '|'
+        str_out += '\n'
+    str_out += keys_bar + '\n'
+    return str_out
 
 class KCParser:
     def __init__(self, key_str: str):
